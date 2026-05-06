@@ -87,3 +87,42 @@ async def test_settings_audio(server_and_actions):
                           json={"audio_enabled": False}) as resp:
             assert resp.status == 204
     actions.set_audio_enabled.assert_called_once_with(False)
+
+
+@pytest.mark.asyncio
+async def test_actions_none_returns_503(tmp_path, monkeypatch):
+    """When no actions are wired, POST /api/* returns 503 instead of 500."""
+    monkeypatch.setenv("HOME", str(tmp_path))
+    cfg = ConfigManager(config_dir=tmp_path / "evf-config")
+    cfg._data["webserver"]["port"] = 0
+    ws = WebServer(
+        PointingState(), StateMachine(), GotoTarget(), cfg,
+        frame_buffer=LatestFrame(),
+        # NOTE: no actions= passed
+    )
+    ws.start()
+    try:
+        for _ in range(20):
+            if ws._port is not None:
+                break
+            threading.Event().wait(0.05)
+        async with ClientSession() as s:
+            async with s.post(f"http://127.0.0.1:{ws._port}/api/wizard/advance") as resp:
+                assert resp.status == 503
+    finally:
+        ws.stop()
+
+
+@pytest.mark.asyncio
+async def test_settings_returns_500_when_first_setter_raises(server_and_actions):
+    """When set_audio_enabled raises, the response is 500 and set_hidpi is NOT called."""
+    ws, actions = server_and_actions
+    actions.set_audio_enabled.side_effect = RuntimeError("boom")
+    async with ClientSession() as s:
+        async with s.post(
+            f"http://127.0.0.1:{ws._port}/api/settings",
+            json={"audio_enabled": False, "hidpi": True},
+        ) as resp:
+            assert resp.status == 500
+    actions.set_audio_enabled.assert_called_once_with(False)
+    actions.set_hidpi.assert_not_called()

@@ -326,17 +326,17 @@ class WebServer:
         if self._actions is None:
             return web.Response(status=503, text="No actions wired")
         try:
-            await asyncio.get_event_loop().run_in_executor(None, fn)
+            await asyncio.to_thread(fn)
         except Exception as exc:
             logger.exception("API action failed: %s", exc)
             return web.Response(status=500, text=str(exc))
         return web.Response(status=204)
 
     async def _api_wizard_advance(self, request):
-        return await self._handle_api(request, self._actions.step_advance)
+        return await self._handle_api(request, lambda: self._actions.step_advance())
 
     async def _api_sync_retry(self, request):
-        return await self._handle_api(request, self._actions.sync_retry)
+        return await self._handle_api(request, lambda: self._actions.sync_retry())
 
     async def _api_sync_select(self, request):
         body = await request.json()
@@ -344,7 +344,7 @@ class WebServer:
         return await self._handle_api(request, lambda: self._actions.set_sync_selected(idx))
 
     async def _api_use_previous_calibration(self, request):
-        return await self._handle_api(request, self._actions.use_previous_calibration)
+        return await self._handle_api(request, lambda: self._actions.use_previous_calibration())
 
     async def _api_set_control(self, request):
         body = await request.json()
@@ -353,14 +353,22 @@ class WebServer:
         return await self._handle_api(request, lambda: self._actions.set_control(name, value))
 
     async def _api_goto_clear(self, request):
-        return await self._handle_api(request, self._actions.clear_goto_target)
+        return await self._handle_api(request, lambda: self._actions.clear_goto_target())
 
     async def _api_settings(self, request):
         body = await request.json()
         if "audio_enabled" in body:
-            await self._handle_api(request, lambda: self._actions.set_audio_enabled(bool(body["audio_enabled"])))
+            resp = await self._handle_api(
+                request,
+                lambda: self._actions.set_audio_enabled(bool(body["audio_enabled"])),
+            )
+            if resp.status >= 400:
+                return resp
         if "hidpi" in body:
-            await self._handle_api(request, lambda: self._actions.set_hidpi(bool(body["hidpi"])))
+            return await self._handle_api(
+                request,
+                lambda: self._actions.set_hidpi(bool(body["hidpi"])),
+            )
         return web.Response(status=204)
 
     # -- payload --------------------------------------------------------------
