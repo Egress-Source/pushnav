@@ -288,6 +288,30 @@ class Engine:
                 self._config,
                 frame_buffer=self._frame_buffer,
                 stellarium_object=lambda: self.stellarium_object,
+                camera_controls=lambda: self.camera_controls,
+                sync_state=lambda: {
+                    "in_progress": self.sync_in_progress,
+                    "candidates": [
+                        {"idx": i, "name": c.name, "ra_deg": c.ra, "dec_deg": c.dec, "magnitude": c.mag}
+                        for i, c in enumerate(self.sync_candidates or [])
+                    ],
+                    "selected_idx": self.sync_selected_idx,
+                    "error": self.sync_error,
+                },
+                activity=lambda: {
+                    "stellarium": {
+                        "active": self.stellarium_has_client,
+                        "address": self.stellarium_address,
+                        "status": self.stellarium_status,
+                        "object": self.stellarium_object,
+                    },
+                    "lx200": {
+                        "active": self.lx200_active,
+                        "address": self.lx200_address,
+                    },
+                    "webserver": {"url": self.web_url},
+                    "audio_enabled": self.audio_enabled,
+                },
             )
             self._webserver.start()
         except Exception as exc:

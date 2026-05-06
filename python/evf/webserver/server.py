@@ -116,6 +116,9 @@ class WebServer:
         frame_buffer: LatestFrame | None = None,
         solver_failures: Callable[[], int] | None = None,
         stellarium_object: Callable[[], dict | None] | None = None,
+        camera_controls: Callable[[], list[dict] | None] | None = None,
+        sync_state: Callable[[], dict] | None = None,
+        activity: Callable[[], dict] | None = None,
     ) -> None:
         self._pointing = pointing
         self._state_machine = state_machine
@@ -124,6 +127,9 @@ class WebServer:
         self._frame_buffer = frame_buffer
         self._solver_failures = solver_failures
         self._stellarium_object = stellarium_object
+        self._camera_controls = camera_controls
+        self._sync_state = sync_state
+        self._activity = activity
 
         self._clients: set[web.WebSocketResponse] = set()
         self._mjpeg_clients: int = 0
@@ -317,6 +323,17 @@ class WebServer:
 
         nav_data = self._build_nav(snap, target, origin_x, origin_y, dx_off, dy_off)
 
+        controls = self._camera_controls() if self._camera_controls else []
+        sync_blk = self._sync_state() if self._sync_state else {
+            "in_progress": False, "candidates": [], "selected_idx": None, "error": None,
+        }
+        activity_blk = self._activity() if self._activity else {}
+        camera_blk = {
+            "connected": True if (self._frame_buffer and self._frame_buffer.get()[0]) else False,
+            "all_centroids": snap.all_centroids if snap.valid else None,
+            "matched_centroids": snap.matched_centroids if snap.valid else None,
+        }
+
         return {
             "state": state.value,
             "failures": failures,
@@ -328,6 +345,13 @@ class WebServer:
             "image_h": _IMG_H,
             "finder_rotation": self._config.finder_rotation,
             "fov_h_deg": _FOV_H,
+            "controls": controls or [],
+            "sync": sync_blk,
+            "stellarium": activity_blk.get("stellarium", {"active": False, "address": None}),
+            "lx200":      activity_blk.get("lx200",      {"active": False, "address": None}),
+            "webserver":  activity_blk.get("webserver",  {"url": None}),
+            "audio_enabled": activity_blk.get("audio_enabled", True),
+            "camera": camera_blk,
         }
 
     def _build_nav(self, snap, target, origin_x, origin_y, dx_off, dy_off) -> dict | None:
