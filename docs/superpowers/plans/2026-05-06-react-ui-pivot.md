@@ -43,21 +43,19 @@ from evf.engine.pointing import PointingState
 from evf.engine.state import StateMachine
 from evf.webserver.server import WebServer
 
-# 1x1 px JPEG (smallest valid JPEG)
-_TINY_JPEG = bytes.fromhex(
-    "ffd8ffe000104a46494600010100000100010000ffdb004300080606"
-    "0706050807070709090808 0a 0c 14 0d 0c 0b 0b 0c 19 12 13 0f 14"
-).replace(b" ", b"")
+# Minimal SOI+EOI — assertion only checks for the SOI marker `\xff\xd8`.
+_TINY_JPEG = b"\xff\xd8\xff\xd9"
 
 
 @pytest.fixture
 def server(tmp_path, monkeypatch):
     """Start a WebServer on an ephemeral port for testing."""
+    import time
     monkeypatch.setenv("HOME", str(tmp_path))
-    cfg = ConfigManager()
-    cfg.web_port = 0  # ephemeral
+    cfg = ConfigManager(config_dir=tmp_path / "evf-config")
+    cfg._data["webserver"]["port"] = 0  # ephemeral; bypasses 1024-65535 validator
     fb = LatestFrame()
-    fb.put(_TINY_JPEG)
+    fb.set(_TINY_JPEG, time.time(), 1)
     ws = WebServer(PointingState(), StateMachine(), GotoTarget(), cfg, frame_buffer=fb)
     ws.start()
     # Wait briefly for thread to bind
