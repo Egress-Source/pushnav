@@ -12,6 +12,7 @@ dependencies = [
     "aiohttp",
     "qrcode[pil]",
     "pyerfa>=2.0.0",
+    "pywebview>=5.0",
 ]
 
 [dependency-groups]
