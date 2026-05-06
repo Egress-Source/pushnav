@@ -209,6 +209,10 @@ class WebServer:
         app.router.add_post("/api/goto/clear", self._api_goto_clear)
         app.router.add_post("/api/settings", self._api_settings)
         app.router.add_static("/sounds", sounds_dir(), name="sounds")
+        from evf.paths import web_dist_dir
+        dist = web_dist_dir()
+        if dist.exists():
+            app.router.add_static("/static", dist, name="react_static")
         app.router.add_static("/assets", web_dir(), name="assets")
 
         runner = web.AppRunner(app)
@@ -229,6 +233,11 @@ class WebServer:
         await self._broadcast_loop()
 
     async def _handle_index(self, request: web.Request) -> web.FileResponse:
+        """Serve the React app shell. Falls back to legacy data/web/index.html if dist missing."""
+        from evf.paths import web_dist_dir
+        dist = web_dist_dir()
+        if (dist / "index.html").exists():
+            return web.FileResponse(dist / "index.html")
         return web.FileResponse(web_dir() / "index.html")
 
     # -- MJPEG frame stream ---------------------------------------------------

@@ -171,6 +171,15 @@ def web_dir() -> Path:
     return _REPO_ROOT / "data" / "web"
 
 
+def web_dist_dir() -> Path:
+    """Path to the built React app (web/dist/) — present only in release or after `npm run build`."""
+    if _BUNDLE_MODE:
+        return _RESOURCES / "web_dist"
+    if _LINUX_RELEASE or _WINDOWS_RELEASE:
+        return _RELEASE_ROOT / "data" / "web_dist"
+    return _REPO_ROOT / "web" / "dist"
+
+
 def samples_dir() -> Path | None:
     """Path to test sample images. Returns None in release modes (not shipped)."""
     if _BUNDLE_MODE or _LINUX_RELEASE or _WINDOWS_RELEASE:
