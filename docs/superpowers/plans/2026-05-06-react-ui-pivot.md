@@ -363,7 +363,9 @@ self._webserver = WebServer(
     sync_state=lambda: {
         "in_progress": self.sync_in_progress,
         "candidates": [
-            {"idx": i, "name": c.name, "ra_deg": c.ra, "dec_deg": c.dec, "magnitude": c.mag}
+            # SyncCandidate has no name field; synthesize one from index.
+            {"idx": i, "name": f"Star #{i + 1}",
+             "ra_deg": c.ra, "dec_deg": c.dec, "magnitude": c.mag}
             for i, c in enumerate(self.sync_candidates or [])
         ],
         "selected_idx": self.sync_selected_idx,
