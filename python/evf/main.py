@@ -21,7 +21,9 @@ Per impl0.md §8.6.
 """
 
 import logging
+import signal
 import sys
+import threading
 
 import dearpygui.dearpygui as dpg
 
@@ -119,6 +121,7 @@ def _windows_primary_monitor_scale() -> int:
 
 def main() -> None:
     dev_mode = "--dev" in sys.argv
+    no_window = "--no-window" in sys.argv
 
     # Engine owns the ConfigManager — create it first so we can read hidpi
     engine = Engine()
@@ -140,6 +143,24 @@ def main() -> None:
             engine.config.hidpi_last_scale = current_scale
 
     vp_scale = 2 if engine.config.hidpi else 1
+
+    if no_window:
+        engine.startup_logging()
+        engine.startup_solver()
+        engine.startup_stellarium()
+        engine.startup_lx200()
+        engine.startup_webserver()
+        engine.startup_camera()
+        if engine.camera_connected:
+            engine.startup_solver_thread()
+
+        logger.info("Running headless (--no-window). Press Ctrl-C to exit.")
+        stop = threading.Event()
+        signal.signal(signal.SIGINT, lambda *_: stop.set())
+        signal.signal(signal.SIGTERM, lambda *_: stop.set())
+        stop.wait()
+        engine.shutdown()
+        return
 
     # Create DPG context and full-size viewport
     dpg.create_context()
