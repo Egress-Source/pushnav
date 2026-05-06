@@ -122,6 +122,7 @@ def _windows_primary_monitor_scale() -> int:
 def main() -> None:
     dev_mode = "--dev" in sys.argv
     no_window = "--no-window" in sys.argv
+    react_mode = "--react" in sys.argv
 
     # Engine owns the ConfigManager — create it first so we can read hidpi
     engine = Engine()
@@ -143,6 +144,35 @@ def main() -> None:
             engine.config.hidpi_last_scale = current_scale
 
     vp_scale = 2 if engine.config.hidpi else 1
+
+    if react_mode:
+        import webview
+
+        # Start the engine + servers headless (no DPG)
+        engine.startup_logging()
+        engine.startup_solver()
+        engine.startup_stellarium()
+        engine.startup_lx200()
+        engine.startup_webserver()
+        engine.startup_camera()
+        if engine.camera_connected:
+            engine.startup_solver_thread()
+
+        # In dev, point the webview at Vite (HMR). In prod, point at aiohttp.
+        target_url = "http://localhost:5173" if dev_mode else "http://localhost:8080"
+        title = f"PushNav {engine.app_version}"
+
+        webview.create_window(
+            title,
+            target_url,
+            width=int(_VP_WIDTH * vp_scale) + _CHROME_BUFFER,
+            height=int(_VP_HEIGHT * vp_scale),
+            resizable=True,
+        )
+        webview.start()  # blocks until window closed
+
+        engine.shutdown()
+        return
 
     if no_window:
         engine.startup_logging()
