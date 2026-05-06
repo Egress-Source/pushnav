@@ -2,6 +2,8 @@ import { useEngineState } from "@/hooks/useEngineState";
 import { LiveView } from "@/components/live-view/LiveView";
 import { CameraControls } from "@/components/controls/CameraControls";
 import { Wizard } from "@/components/wizard/Wizard";
+import { Settings } from "@/components/settings/Settings";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function App() {
   const state = useEngineState();
@@ -14,7 +16,18 @@ export default function App() {
           <Wizard state={state} />
         </div>
         <div className="space-y-4">
-          <CameraControls controls={state.controls} />
+          <Tabs defaultValue="camera">
+            <TabsList>
+              <TabsTrigger value="camera">Camera</TabsTrigger>
+              <TabsTrigger value="settings">Settings</TabsTrigger>
+            </TabsList>
+            <TabsContent value="camera">
+              <CameraControls controls={state.controls} />
+            </TabsContent>
+            <TabsContent value="settings">
+              <Settings state={state} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
