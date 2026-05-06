@@ -1,0 +1,56 @@
+import { useState, useEffect } from "react";
+import { Slider } from "@/components/ui/slider";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { api } from "@/lib/api";
+import type { ControlDescriptor } from "@/lib/types";
+
+interface Props {
+  controls: ControlDescriptor[];
+}
+
+export function CameraControls({ controls }: Props) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Camera</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {controls.map((c) => (
+          <ControlRow key={c.id ?? c.name} control={c} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ControlRow({ control }: { control: ControlDescriptor }) {
+  const id = control.id ?? control.name ?? "";
+  const [local, setLocal] = useState(control.value);
+
+  // Reflect server-side updates
+  useEffect(() => { setLocal(control.value); }, [control.value]);
+
+  const commit = (v: number) => {
+    setLocal(v);
+    api.setControl(id, v).catch((e) => console.error(e));
+  };
+
+  return (
+    <div>
+      <div className="flex justify-between text-sm mb-1">
+        <span>{control.label}</span>
+        <span className="text-muted-foreground">
+          {local}{control.unit ? ` ${control.unit}` : ""}
+        </span>
+      </div>
+      <Slider
+        min={control.min}
+        max={control.max}
+        step={control.step ?? 1}
+        value={[local]}
+        onValueChange={([v]) => setLocal(v)}
+        onValueCommit={([v]) => commit(v)}
+      />
+    </div>
+  );
+}
