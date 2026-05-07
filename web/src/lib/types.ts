@@ -43,8 +43,10 @@ export interface ControlDescriptor {
   min: number;
   max: number;
   step: number;
-  value: number;
+  cur: number;     // current value — DPG protocol uses "cur"
+  value?: number;  // legacy alias kept for back-compat
   unit?: string;
+  type?: string;
 }
 
 export interface SyncCandidate {

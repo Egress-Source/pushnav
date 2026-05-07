@@ -25,10 +25,11 @@ export function CameraControls({ controls }: Props) {
 
 function ControlRow({ control }: { control: ControlDescriptor }) {
   const id = control.id ?? control.name ?? "";
-  const [local, setLocal] = useState(control.value);
+  const serverValue = control.cur ?? control.value ?? control.min;
+  const [local, setLocal] = useState(serverValue);
 
   // Reflect server-side updates
-  useEffect(() => { setLocal(control.value); }, [control.value]);
+  useEffect(() => { setLocal(serverValue); }, [serverValue]);
 
   const commit = (v: number) => {
     setLocal(v);
