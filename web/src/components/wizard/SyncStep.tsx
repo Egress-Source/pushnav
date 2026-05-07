@@ -30,7 +30,7 @@ export function SyncStep({ state }: { state: EnginePayload }) {
             disabled={state.sync.in_progress}
             onClick={() => api.wizardAdvance()}
           >
-            {state.sync.in_progress ? "Solving…" : "Solve frame"}
+            {state.sync.in_progress ? "Solving…" : "Next"}
           </Button>
           {state.has_calibration && (
             <Button variant="outline" onClick={() => api.useCalibration()}>
