@@ -11,7 +11,6 @@ import { StepIndicator } from "@/components/StepIndicator";
 import { GotoTargetBanner } from "@/components/GotoTargetBanner";
 import { PlateSolveStats } from "@/components/PlateSolveStats";
 import { DebugPanel } from "@/components/debug/DebugPanel";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function useLocalStorageBool(key: string, defaultValue: boolean) {
   const [v, setV] = useState<boolean>(() => {
@@ -45,22 +44,12 @@ export default function App() {
               <Wizard state={state} />
             </div>
             <div className="space-y-4">
-              <Tabs defaultValue="camera">
-                <TabsList>
-                  <TabsTrigger value="camera">Camera</TabsTrigger>
-                  <TabsTrigger value="settings">Settings</TabsTrigger>
-                </TabsList>
-                <TabsContent value="camera">
-                  <CameraControls controls={state.controls} />
-                </TabsContent>
-                <TabsContent value="settings">
-                  <Settings
-                    state={state}
-                    showStars={showStars}
-                    setShowStars={setShowStars}
-                  />
-                </TabsContent>
-              </Tabs>
+              <CameraControls controls={state.controls} />
+              <Settings
+                state={state}
+                showStars={showStars}
+                setShowStars={setShowStars}
+              />
               <PlateSolveStats state={state} />
               {state.dev_mode && <DebugPanel state={state} />}
             </div>
