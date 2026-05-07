@@ -53,6 +53,8 @@ export interface SyncCandidate {
   ra_deg: number;
   dec_deg: number;
   magnitude: number;
+  pixel_x: number;
+  pixel_y: number;
 }
 
 export interface SyncBlock {
@@ -86,6 +88,8 @@ export interface EnginePayload {
   image_h: number;
   finder_rotation: number;
   fov_h_deg: number;
+  has_calibration: boolean;
+  image_size: [number, number] | null;
   controls: ControlDescriptor[];
   sync: SyncBlock;
   stellarium: ActivityLine;

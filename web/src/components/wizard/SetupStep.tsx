@@ -14,9 +14,6 @@ export function SetupStep({ state: _ }: { state: EnginePayload }) {
       </CardHeader>
       <CardContent className="flex gap-2">
         <Button onClick={() => api.wizardAdvance()}>Begin Sync</Button>
-        <Button variant="outline" onClick={() => api.useCalibration()}>
-          Use previous calibration
-        </Button>
       </CardContent>
     </Card>
   );

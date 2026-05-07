@@ -9,6 +9,7 @@ const base: EnginePayload = {
   nav: null,
   origin_x: 640, origin_y: 360, image_w: 1280, image_h: 720,
   finder_rotation: 0, fov_h_deg: 8.86,
+  has_calibration: false, image_size: null,
   controls: [], sync: { in_progress: false, candidates: [], selected_idx: null, error: null },
   stellarium: { active: false, address: null }, lx200: { active: false, address: null },
   webserver: { url: null }, audio_enabled: true,
