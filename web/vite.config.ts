@@ -10,6 +10,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: { alias: { "@": path.resolve(__dirname, "./src") } },
   server: {
+    port: 5000,
+    strictPort: true,
     proxy: {
       "/ws":         { target: "ws://localhost:8080", ws: true },
       "/frame.mjpg": "http://localhost:8080",

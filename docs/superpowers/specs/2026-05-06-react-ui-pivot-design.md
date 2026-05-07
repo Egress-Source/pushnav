@@ -48,7 +48,7 @@ So this pivot is **replacing one consumer of `PointingState`** (DPG) with anothe
 │    Windows: WebView2 (Edge Chromium)                         │
 │    Linux:   GTK WebKit                                       │
 │  Loads: http://localhost:8080  (prod)                        │
-│         http://localhost:5173  (dev — Vite HMR)              │
+│         http://localhost:5000  (dev — Vite HMR)              │
 └───────────────────────────┬─────────────────────────────────┘
                             │ HTTP + WS on loopback
                             ▼
@@ -146,11 +146,11 @@ uv run python -m evf.main --dev
 # --dev: skip pywebview window, just run engine + server. Frees you to use
 # normal browser dev tools.
 
-# Terminal 2 — Vite on :5173 with React HMR
+# Terminal 2 — Vite on :5000 with React HMR
 cd web && npm run dev
 ```
 
-Open `http://localhost:5173` in your normal browser (Chrome dev tools, React DevTools, etc.). Edit `.tsx` → instant HMR. **Python engine never restarts.**
+Open `http://localhost:5000` in your normal browser (Chrome dev tools, React DevTools, etc.). Edit `.tsx` → instant HMR. **Python engine never restarts.**
 
 Vite is configured to proxy these paths to `localhost:8080`:
 

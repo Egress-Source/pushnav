@@ -159,7 +159,7 @@ def main() -> None:
             engine.startup_solver_thread()
 
         # In dev, point the webview at Vite (HMR). In prod, point at aiohttp.
-        target_url = "http://localhost:5173" if dev_mode else "http://localhost:8080"
+        target_url = "http://localhost:5000" if dev_mode else "http://localhost:8080"
         title = f"PushNav {engine.app_version}"
 
         webview.create_window(

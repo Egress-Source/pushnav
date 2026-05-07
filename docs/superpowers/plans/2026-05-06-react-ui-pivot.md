@@ -4,7 +4,7 @@
 
 **Goal:** Replace the 1,896-line DearPyGui desktop UI (`python/evf/ui/window.py`) with a React + ShadCN front-end hosted in a pywebview window, while keeping the engine, solver, and TCP servers unchanged.
 
-**Architecture:** The engine's existing aiohttp server gains an MJPEG frame endpoint and `POST /api/*` action endpoints. A new `web/` directory holds a Vite + React + TS + Tailwind + shadcn front-end. In dev, Vite serves on `:5173` with HMR and proxies to the Python engine on `:8080`. In prod, Nuitka bundles the React build (`web/dist/`) and pywebview opens a native window pointing at `http://localhost:8080`. DPG and React run side-by-side until feature parity is reached, then DPG is removed.
+**Architecture:** The engine's existing aiohttp server gains an MJPEG frame endpoint and `POST /api/*` action endpoints. A new `web/` directory holds a Vite + React + TS + Tailwind + shadcn front-end. In dev, Vite serves on `:5000` with HMR and proxies to the Python engine on `:8080`. In prod, Nuitka bundles the React build (`web/dist/`) and pywebview opens a native window pointing at `http://localhost:8080`. DPG and React run side-by-side until feature parity is reached, then DPG is removed.
 
 **Tech Stack:** Python 3.12, aiohttp, pywebview ≥ 5.0, Node 20+, Vite 5, React 18, TypeScript 5, Tailwind 3, shadcn/ui (Radix + Tailwind), vitest, React Testing Library.
 
@@ -705,7 +705,7 @@ git add python/evf/main.py
 git commit -m "feat(main): add --no-window mode for headless dev/testing
 
 Runs engine + servers without DPG, blocks until SIGINT/SIGTERM.
-Used by the React dev workflow: Vite serves UI on :5173 and proxies
+Used by the React dev workflow: Vite serves UI on :5000 and proxies
 to the Python engine on :8080."
 ```
 
@@ -741,7 +741,7 @@ This creates `web/` with a working starter. Verify:
 
 ```bash
 npm run dev
-# Expect: VITE v5.x  ready in ... ms — http://localhost:5173/
+# Expect: VITE v5.x  ready in ... ms — http://localhost:5000/
 # Open in browser: should show Vite + React starter.
 # Ctrl-C
 ```
@@ -807,7 +807,7 @@ No changes needed — verify these exist.
 
 ```bash
 cd web && npm run dev
-# Open http://localhost:5173 — should show "PushNav React UI scaffold"
+# Open http://localhost:5000 — should show "PushNav React UI scaffold"
 # Ctrl-C
 ```
 
@@ -879,7 +879,7 @@ In `web/src/App.tsx`, the existing `className="min-h-screen flex items-center ju
 
 ```bash
 npm run dev
-# Open http://localhost:5173 — should be visibly centered with large text
+# Open http://localhost:5000 — should be visibly centered with large text
 ```
 
 - [ ] **Step 5: Commit**
@@ -990,7 +990,7 @@ export default function App() {
 
 ```bash
 npm run dev
-# Open http://localhost:5173 — should show a styled Card with three buttons
+# Open http://localhost:5000 — should show a styled Card with three buttons
 ```
 
 - [ ] **Step 5: Commit**
@@ -1224,7 +1224,7 @@ export default function App() {
 }
 ```
 
-Open `http://localhost:5173`. Expect: live JSON ticking 10× / second showing engine state, pointing, etc.
+Open `http://localhost:5000`. Expect: live JSON ticking 10× / second showing engine state, pointing, etc.
 
 - [ ] **Step 5: Commit**
 
@@ -1388,7 +1388,7 @@ uv run python -m evf.main --dev --no-window
 cd web && npm run dev
 ```
 
-Open `http://localhost:5173`. Expect:
+Open `http://localhost:5000`. Expect:
 - Live frame visible (or black if no camera).
 - Once tracking, faint circles at every detected star, brighter cyan circles at matched stars.
 - If a GOTO is sent (test via Stellarium or `engine.goto_target.set(ra, dec)`), see reticle when in-FOV or edge arrow when out.
@@ -2099,7 +2099,7 @@ if react_mode:
         engine.startup_solver_thread()
 
     # In dev, point the webview at Vite (HMR). In prod, point at aiohttp.
-    target_url = "http://localhost:5173" if dev_mode else "http://localhost:8080"
+    target_url = "http://localhost:5000" if dev_mode else "http://localhost:8080"
     title = f"PushNav {engine.app_version}"
 
     webview.create_window(
@@ -2331,7 +2331,7 @@ def main() -> None:
         return
 
     import webview
-    target_url = "http://localhost:5173" if dev_mode else "http://localhost:8080"
+    target_url = "http://localhost:5000" if dev_mode else "http://localhost:8080"
     title = f"PushNav {engine.app_version}"
     webview.create_window(
         title,
@@ -2467,8 +2467,8 @@ Update Build & Run:
 ```bash
 uv sync                          # install Python deps from lockfile
 (cd web && npm install)          # install Node deps
-(cd web && npm run dev) &        # Vite HMR on :5173
-uv run python -m evf.main --dev  # launch app (pywebview window points at :5173)
+(cd web && npm run dev) &        # Vite HMR on :5000
+uv run python -m evf.main --dev  # launch app (pywebview window points at :5000)
 ```
 
 Update Key Dependencies — replace DearPyGui line with:
