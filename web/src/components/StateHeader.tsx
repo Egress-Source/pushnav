@@ -1,6 +1,7 @@
 import { Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { EnginePayload } from "@/lib/types";
 
 interface Props {
@@ -39,6 +40,25 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
+function StatColumn({
+  children,
+  divider,
+}: {
+  children: React.ReactNode;
+  divider?: boolean;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-0.5 min-w-[120px]",
+        divider && "border-l border-border pl-4",
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 function HeaderStats({ state }: { state: EnginePayload }) {
   if (!TRACKING_STATES.includes(state.state)) return null;
   const p = state.pointing;
@@ -51,13 +71,19 @@ function HeaderStats({ state }: { state: EnginePayload }) {
     p.solve_age_s !== null ? `${p.solve_age_s.toFixed(1)}s` : "--";
 
   return (
-    <div className="hidden md:grid grid-cols-3 gap-x-5 gap-y-0.5">
-      <Stat label="RA" value={ra} />
-      <Stat label="Roll" value={roll} />
-      <Stat label="Prob" value={prob} />
-      <Stat label="Dec" value={dec} />
-      <Stat label="Matches" value={matches} />
-      <Stat label="Age" value={age} />
+    <div className="hidden md:flex items-stretch gap-4">
+      <StatColumn>
+        <Stat label="RA" value={ra} />
+        <Stat label="Dec" value={dec} />
+      </StatColumn>
+      <StatColumn divider>
+        <Stat label="Roll" value={roll} />
+        <Stat label="Matches" value={matches} />
+      </StatColumn>
+      <StatColumn divider>
+        <Stat label="Prob" value={prob} />
+        <Stat label="Age" value={age} />
+      </StatColumn>
     </div>
   );
 }
