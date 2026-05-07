@@ -50,7 +50,7 @@ function StatColumn({
   return (
     <div
       className={cn(
-        "flex flex-col gap-0.5 min-w-[120px]",
+        "flex flex-col gap-0.5 min-w-0 sm:min-w-[100px]",
         divider && "border-l border-border pl-4",
       )}
     >
@@ -71,7 +71,7 @@ function HeaderStats({ state }: { state: EnginePayload }) {
     p.solve_age_s !== null ? `${p.solve_age_s.toFixed(1)}s` : "--";
 
   return (
-    <div className="hidden md:flex items-stretch gap-4">
+    <div className="flex items-stretch gap-4">
       <StatColumn>
         <Stat label="RA" value={ra} />
         <Stat label="Dec" value={dec} />
@@ -84,6 +84,7 @@ function HeaderStats({ state }: { state: EnginePayload }) {
         <Stat label="Prob" value={prob} />
         <Stat label="Age" value={age} />
       </StatColumn>
+      <div aria-hidden className="border-l border-border self-stretch" />
     </div>
   );
 }
