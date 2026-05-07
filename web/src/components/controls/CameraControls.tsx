@@ -40,9 +40,7 @@ function ControlRow({ control }: { control: ControlDescriptor }) {
     <div>
       <div className="flex justify-between text-sm mb-1">
         <span>{control.label}</span>
-        <span className="text-muted-foreground">
-          {local}{control.unit ? ` ${control.unit}` : ""}
-        </span>
+        <span className="text-muted-foreground">{local}</span>
       </div>
       <Slider
         min={control.min}
