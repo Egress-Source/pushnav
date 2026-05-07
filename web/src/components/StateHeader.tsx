@@ -28,7 +28,7 @@ function formatDec(deg: number): string {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-baseline justify-end gap-2 leading-tight">
+    <div className="flex items-baseline justify-between gap-3 leading-tight">
       <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
         {label}
       </span>
@@ -49,18 +49,15 @@ function HeaderStats({ state }: { state: EnginePayload }) {
   const prob = p.valid ? p.prob.toExponential(1) : "--";
   const age =
     p.solve_age_s !== null ? `${p.solve_age_s.toFixed(1)}s` : "--";
-  const failures = String(state.failures);
 
   return (
-    <div className="hidden md:grid grid-cols-4 gap-x-5 gap-y-0.5">
+    <div className="hidden md:grid grid-cols-3 gap-x-5 gap-y-0.5">
       <Stat label="RA" value={ra} />
       <Stat label="Roll" value={roll} />
       <Stat label="Prob" value={prob} />
-      <Stat label="Failures" value={failures} />
       <Stat label="Dec" value={dec} />
       <Stat label="Matches" value={matches} />
       <Stat label="Age" value={age} />
-      <Stat label="" value="" />
     </div>
   );
 }
