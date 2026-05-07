@@ -64,6 +64,11 @@ class EngineActions(Protocol):
     def clear_goto_target(self) -> None: ...
     def set_audio_enabled(self, enabled: bool) -> None: ...
     def set_hidpi(self, enabled: bool) -> None: ...
+    def inject_sample(self, name: str | None) -> None: ...
+    def inject_target(self, ra_deg: float, dec_deg: float) -> None: ...
+    def capture_frame(self): ...  # returns Path | None
+    def set_min_matches(self, value: int) -> None: ...
+    def set_max_prob(self, value: float) -> None: ...
 
 
 def _compute_origin(config: ConfigManager) -> tuple[float, float]:
@@ -132,6 +137,9 @@ class WebServer:
         camera_controls: Callable[[], list[dict] | None] | None = None,
         sync_state: Callable[[], dict] | None = None,
         activity: Callable[[], dict] | None = None,
+        stellarium_location: Callable[[], dict | None] | None = None,
+        dev_mode: bool = False,
+        sample_active: Callable[[], str | None] | None = None,
         actions: "EngineActions | None" = None,
     ) -> None:
         self._pointing = pointing
@@ -144,6 +152,9 @@ class WebServer:
         self._camera_controls = camera_controls
         self._sync_state = sync_state
         self._activity = activity
+        self._stellarium_location = stellarium_location
+        self._dev_mode = dev_mode
+        self._sample_active = sample_active
         self._actions = actions
 
         self._clients: set[web.WebSocketResponse] = set()
@@ -208,6 +219,9 @@ class WebServer:
         app.router.add_post("/api/control", self._api_set_control)
         app.router.add_post("/api/goto/clear", self._api_goto_clear)
         app.router.add_post("/api/settings", self._api_settings)
+        app.router.add_post("/api/dev/inject-sample", self._api_dev_inject_sample)
+        app.router.add_post("/api/dev/inject-target", self._api_dev_inject_target)
+        app.router.add_post("/api/dev/capture-frame", self._api_dev_capture_frame)
         app.router.add_static("/sounds", sounds_dir(), name="sounds")
         from evf.paths import web_dist_dir
         dist = web_dist_dir()
@@ -374,11 +388,55 @@ class WebServer:
             if resp.status >= 400:
                 return resp
         if "hidpi" in body:
-            return await self._handle_api(
+            resp = await self._handle_api(
                 request,
                 lambda: self._actions.set_hidpi(bool(body["hidpi"])),
             )
+            if resp.status >= 400:
+                return resp
+        if "min_matches" in body:
+            resp = await self._handle_api(
+                request,
+                lambda: self._actions.set_min_matches(int(body["min_matches"])),
+            )
+            if resp.status >= 400:
+                return resp
+        if "max_prob" in body:
+            resp = await self._handle_api(
+                request,
+                lambda: self._actions.set_max_prob(float(body["max_prob"])),
+            )
+            if resp.status >= 400:
+                return resp
         return web.Response(status=204)
+
+    async def _api_dev_inject_sample(self, request):
+        body = await request.json()
+        name = body.get("name")  # str or None
+        return await self._handle_api(
+            request, lambda: self._actions.inject_sample(name),
+        )
+
+    async def _api_dev_inject_target(self, request):
+        body = await request.json()
+        ra = float(body["ra_deg"])
+        dec = float(body["dec_deg"])
+        return await self._handle_api(
+            request, lambda: self._actions.inject_target(ra, dec),
+        )
+
+    async def _api_dev_capture_frame(self, request):
+        """Save the latest frame to ~/Downloads. Returns 200 + JSON {path}."""
+        if self._actions is None:
+            return web.Response(status=503, text="No actions wired")
+        try:
+            path = await asyncio.to_thread(self._actions.capture_frame)
+        except Exception as exc:
+            logger.exception("capture_frame failed: %s", exc)
+            return web.Response(status=500, text=str(exc))
+        if path is None:
+            return web.json_response({"path": None, "error": "no frame"}, status=409)
+        return web.json_response({"path": str(path)})
 
     # -- payload --------------------------------------------------------------
 
@@ -417,6 +475,17 @@ class WebServer:
             "matched_centroids": snap.matched_centroids if snap.valid else None,
         }
 
+        stellarium_blk = dict(
+            activity_blk.get("stellarium", {"active": False, "address": None})
+        )
+        if self._stellarium_location is not None:
+            try:
+                stellarium_blk["location"] = self._stellarium_location()
+            except Exception:
+                stellarium_blk["location"] = None
+        else:
+            stellarium_blk.setdefault("location", None)
+
         return {
             "state": state.value,
             "failures": failures,
@@ -432,11 +501,17 @@ class WebServer:
             "image_size": list(snap.image_size) if snap.valid and snap.image_size else None,
             "controls": controls or [],
             "sync": sync_blk,
-            "stellarium": activity_blk.get("stellarium", {"active": False, "address": None}),
+            "stellarium": stellarium_blk,
             "lx200":      activity_blk.get("lx200",      {"active": False, "address": None}),
             "webserver":  activity_blk.get("webserver",  {"url": None}),
             "audio_enabled": activity_blk.get("audio_enabled", True),
             "camera": camera_blk,
+            "dev_mode": self._dev_mode,
+            "min_matches": self._config.min_matches,
+            "max_prob": self._config.max_prob,
+            "sample_active": (
+                self._sample_active() if self._sample_active else None
+            ),
         }
 
     def _build_nav(self, snap, target, origin_x, origin_y, dx_off, dy_off) -> dict | None:

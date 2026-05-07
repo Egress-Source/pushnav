@@ -125,7 +125,7 @@ def main() -> None:
     react_mode = "--react" in sys.argv
 
     # Engine owns the ConfigManager — create it first so we can read hidpi
-    engine = Engine()
+    engine = Engine(dev_mode=dev_mode)
 
     # Auto-toggle 4K mode on Windows whenever the detected display scale
     # changes (different monitor, docking, Windows scaling changed). Within a

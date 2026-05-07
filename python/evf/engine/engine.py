@@ -21,10 +21,12 @@ Per SPEC_ARCHITECTURE.md and impl0.md §Phase 8.
 Central coordinator that owns the lifecycle of every subsystem.
 """
 
+import io
 import json
 import logging
 import threading
 import time
+from pathlib import Path
 
 from evf.camera.subprocess_mgr import SubprocessManager
 from evf.config.logging_setup import setup_logging
@@ -33,6 +35,7 @@ from evf.engine.audio import AudioAlert
 from evf.engine.frame_buffer import LatestFrame
 from evf.engine.goto_target import GotoTarget
 from evf.engine.pointing import PointingState
+from evf.engine.sample_injector import SampleInjector
 from evf.engine.state import EngineState, StateMachine
 from evf.solver.solver import PlateSolver
 import numpy as np
@@ -78,7 +81,7 @@ class Engine:
     calls back into the engine for tracking toggle and camera control changes.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, *, dev_mode: bool = False) -> None:
         # Shared data structures
         self._frame_buffer = LatestFrame()
         self._pointing_state = PointingState()
@@ -86,6 +89,10 @@ class Engine:
         self._config = ConfigManager()
         self._goto_target = GotoTarget()
         self._app_version = _read_app_version()
+        self._dev_mode = dev_mode
+
+        # Sample injector (continuous JPEG injection for dev/debug)
+        self._sample_injector = SampleInjector(self._frame_buffer)
 
         # Components (created during startup)
         self._solver: PlateSolver | None = None
@@ -128,6 +135,14 @@ class Engine:
         return self._app_version
 
     @property
+    def dev_mode(self) -> bool:
+        return self._dev_mode
+
+    @property
+    def sample_injector(self) -> SampleInjector:
+        return self._sample_injector
+
+    @property
     def camera_connected(self) -> bool:
         """True if the camera subprocess is running and connected."""
         return self._subprocess_mgr is not None and self._subprocess_mgr.running
@@ -167,6 +182,63 @@ class Engine:
 
     def set_hidpi(self, enabled: bool) -> None:
         self._config.hidpi = enabled
+
+    def inject_sample(self, name: str | None) -> None:
+        """Start/stop continuous injection of a sample image (dev only).
+
+        name: one of {"a","b","c","d","orion"} or None to stop.
+        """
+        from evf.paths import samples_dir
+        from evf.engine.sample_injector import load_sample_jpeg
+
+        if not self._dev_mode:
+            logger.warning("inject_sample called outside dev_mode — ignoring")
+            return
+        if name is None:
+            self._sample_injector.set_jpeg(None, None)
+            self._frame_buffer.clear()
+            logger.info("Sample injection stopped")
+            return
+        sd = samples_dir()
+        if sd is None:
+            logger.error("Samples directory not available in this build")
+            return
+        try:
+            jpeg = load_sample_jpeg(sd, name)
+            self._sample_injector.set_jpeg(jpeg, name)
+            logger.info("Sample injection started: %s.png", name)
+        except Exception as exc:
+            logger.error("Failed to load sample %s: %s", name, exc)
+
+    def inject_target(self, ra_deg: float, dec_deg: float) -> None:
+        """Set the GOTO target manually (dev only)."""
+        if not self._dev_mode:
+            logger.warning("inject_target called outside dev_mode — ignoring")
+            return
+        self._goto_target.set(ra_deg, dec_deg)
+        logger.info("Dev: injected GOTO target at RA %.4f° Dec %.4f°", ra_deg, dec_deg)
+
+    def capture_frame(self) -> Path | None:
+        """Save the latest frame to ~/Downloads as PNG. Returns the path or None."""
+        from datetime import datetime
+        from PIL import Image
+
+        jpeg, _ts, _fid = self._frame_buffer.get()
+        if jpeg is None:
+            return None
+        img = Image.open(io.BytesIO(jpeg)).convert("RGB")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        dest = Path.home() / "Downloads" / f"evf_capture_{timestamp}.png"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        img.save(dest)
+        logger.info("Frame captured: %s", dest)
+        return dest
+
+    def set_min_matches(self, value: int) -> None:
+        self._config.min_matches = int(value)
+
+    def set_max_prob(self, value: float) -> None:
+        self._config.max_prob = float(value)
 
     @property
     def stellarium_status(self) -> dict | None:
@@ -320,6 +392,12 @@ class Engine:
                     "webserver": {"url": self.web_url},
                     "audio_enabled": self.audio_enabled,
                 },
+                stellarium_location=lambda: (
+                    (self.stellarium_status or {}).get("location")
+                    if self.stellarium_status else None
+                ),
+                dev_mode=self._dev_mode,
+                sample_active=lambda: self._sample_injector.active_name,
                 actions=self,
             )
             self._webserver.start()
@@ -571,6 +649,12 @@ class Engine:
     def shutdown(self) -> None:
         """Graceful shutdown. Each step with independent timeout."""
         logger.info("Shutting down")
+
+        # 0. Stop sample injector (so it stops writing frames before solver stops)
+        try:
+            self._sample_injector.stop()
+        except Exception as exc:
+            logger.error("Error stopping sample injector: %s", exc)
 
         # 1. Stop solver thread
         if self._solver_thread:
