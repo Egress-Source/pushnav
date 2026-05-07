@@ -562,13 +562,22 @@ class WebServer:
                     origin_x=origin_x, origin_y=origin_y,
                 )
 
+        # Apply sync offset to in-FOV pixel coords so the React side renders the
+        # target marker at its actual position in the camera image. compute_navigation
+        # returns coords assuming "image center == pointing center", but the
+        # eyepiece's projected center is offset by (dx_off, dy_off) from the
+        # camera image center. DPG's _draw_navigation_overlay applied this in
+        # the CONVERGE branch (window.py:~1380) — keeping parity here.
+        offset_pixel_x = nav.pixel_x + dx_off if nav.pixel_x is not None else None
+        offset_pixel_y = nav.pixel_y + dy_off if nav.pixel_y is not None else None
+
         return {
             **base,
             "separation_deg": nav.separation_deg,
             "direction_text": nav.direction_text,
             "in_fov": nav.in_fov,
-            "pixel_x": nav.pixel_x,
-            "pixel_y": nav.pixel_y,
+            "pixel_x": offset_pixel_x,
+            "pixel_y": offset_pixel_y,
             "camera_angle_deg": nav.camera_angle_deg,
             "edge_x": edge_x,
             "edge_y": edge_y,
