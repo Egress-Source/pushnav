@@ -19,4 +19,16 @@ export const api = {
   clearGoto: () => post("/api/goto/clear"),
   setSettings: (s: { audio_enabled?: boolean; hidpi?: boolean }) =>
     post("/api/settings", s),
+  setAdvanced: (s: { min_matches?: number; max_prob?: number }) =>
+    post("/api/settings", s),
+  dev: {
+    injectSample: (name: string | null) =>
+      post("/api/dev/inject-sample", { name }),
+    injectTarget: (ra_deg: number, dec_deg: number) =>
+      post("/api/dev/inject-target", { ra_deg, dec_deg }),
+    captureFrame: async (): Promise<{ path: string | null; error?: string }> => {
+      const resp = await fetch("/api/dev/capture-frame", { method: "POST" });
+      return await resp.json();
+    },
+  },
 };

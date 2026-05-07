@@ -1,3 +1,6 @@
+import { Volume2, VolumeX } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import type { EnginePayload, EngineState } from "@/lib/types";
 
 interface Props {
@@ -5,10 +8,10 @@ interface Props {
 }
 
 const STEPS: { num: number; label: string; states: EngineState[] }[] = [
-  { num: 1, label: "Setup", states: ["SETUP"] },
-  { num: 2, label: "Sync", states: ["SYNC", "SYNC_CONFIRM"] },
-  { num: 3, label: "Calibrate", states: ["CALIBRATE"] },
-  { num: 4, label: "Track", states: ["WARMING_UP", "TRACKING"] },
+  { num: 1, label: "Camera", states: ["SETUP"] },
+  { num: 2, label: "Sync",   states: ["SYNC", "SYNC_CONFIRM"] },
+  { num: 3, label: "Roll",   states: ["CALIBRATE"] },
+  { num: 4, label: "Track",  states: ["WARMING_UP", "TRACKING"] },
 ];
 
 const NEXT_ACTION: Record<EngineState, string> = {
@@ -27,7 +30,7 @@ export function StateHeader({ state }: Props) {
   return (
     <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-border">
       <div className="flex items-center gap-3">
-        <span className="font-semibold text-lg tracking-tight">PushNav</span>
+        <span className="font-semibold text-lg tracking-tight text-primary">PushNav</span>
       </div>
       <div className="flex items-center gap-1">
         {STEPS.map((step) => {
@@ -46,11 +49,23 @@ export function StateHeader({ state }: Props) {
           );
         })}
       </div>
-      <div className="flex flex-col md:items-end text-sm">
-        <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-          {currentState}
-        </span>
-        <span className="text-foreground">{NEXT_ACTION[currentState]}</span>
+      <div className="flex items-center gap-3">
+        <div className="flex flex-col md:items-end text-sm">
+          <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
+            {currentState}
+          </span>
+          <span className="text-foreground">{NEXT_ACTION[currentState]}</span>
+        </div>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() =>
+            api.setSettings({ audio_enabled: !state.audio_enabled })
+          }
+          title={state.audio_enabled ? "Mute audio" : "Unmute audio"}
+        >
+          {state.audio_enabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+        </Button>
       </div>
     </div>
   );

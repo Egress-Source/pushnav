@@ -64,11 +64,19 @@ export interface SyncBlock {
   error: string | null;
 }
 
+export interface ObserverLocation {
+  name?: string;
+  country?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
 export interface ActivityLine {
   active: boolean;
   address: string | null;
   status?: unknown;
   object?: { name?: string; "localized-name"?: string } | null;
+  location?: ObserverLocation | null;
 }
 
 export interface CameraBlock {
@@ -97,4 +105,8 @@ export interface EnginePayload {
   webserver: { url: string | null };
   audio_enabled: boolean;
   camera: CameraBlock;
+  dev_mode: boolean;
+  min_matches: number;
+  max_prob: number;
+  sample_active: string | null;
 }

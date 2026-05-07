@@ -4,10 +4,16 @@ interface Props {
   state: EnginePayload;
 }
 
+/**
+ * All detected centroids (dim red) and matched centroids (bright red).
+ * Mirrors window.py _draw_star_overlay (~1828).
+ */
 export function StarOverlay({ state }: Props) {
   const all = state.camera.all_centroids ?? [];
   const matched = state.camera.matched_centroids ?? [];
-  const matchedKeys = new Set(matched.map(([y, x]) => `${y.toFixed(1)}:${x.toFixed(1)}`));
+  const matchedKeys = new Set(
+    matched.map(([y, x]) => `${y.toFixed(1)}:${x.toFixed(1)}`),
+  );
   return (
     <g>
       {all.map(([y, x], i) => {
@@ -19,7 +25,11 @@ export function StarOverlay({ state }: Props) {
             cy={y}
             r={isMatched ? 8 : 6}
             fill="none"
-            stroke={isMatched ? "#22d3ee" : "#64748b"}
+            stroke={
+              isMatched
+                ? "rgba(255, 70, 70, 0.86)"
+                : "rgba(150, 40, 40, 0.71)"
+            }
             strokeWidth={isMatched ? 2 : 1}
           />
         );

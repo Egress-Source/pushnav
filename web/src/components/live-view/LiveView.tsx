@@ -2,14 +2,17 @@ import type { EnginePayload } from "@/lib/types";
 import { StarOverlay } from "./StarOverlay";
 import { NavOverlay } from "./NavOverlay";
 import { SyncCandidatesOverlay } from "./SyncCandidatesOverlay";
+import { AxesOverlay } from "./AxesOverlay";
+import { LocationOverlay } from "./LocationOverlay";
 
 interface Props {
   state: EnginePayload;
+  showStars: boolean;
 }
 
 const NO_STARS_STATES = ["CALIBRATE", "WARMING_UP", "TRACKING"];
 
-export function LiveView({ state }: Props) {
+export function LiveView({ state, showStars }: Props) {
   const { image_w, image_h } = state;
   const noStars =
     NO_STARS_STATES.includes(state.state) && state.failures >= 3;
@@ -28,7 +31,9 @@ export function LiveView({ state }: Props) {
         viewBox={`0 0 ${image_w} ${image_h}`}
         preserveAspectRatio="xMidYMid slice"
       >
-        <StarOverlay state={state} />
+        <LocationOverlay state={state} />
+        {showStars && <StarOverlay state={state} />}
+        {!noStars && <AxesOverlay state={state} />}
         {!noStars && <NavOverlay state={state} />}
         {state.state === "SYNC_CONFIRM" && (
           <SyncCandidatesOverlay state={state} />
