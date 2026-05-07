@@ -17,13 +17,13 @@ export function SyncConfirmStep({ state }: { state: EnginePayload }) {
       </CardHeader>
       <CardContent className="space-y-2">
         <div className="flex flex-wrap gap-2">
-          {candidates.map((c) => (
+          {candidates.slice(0, 7).map((c) => (
             <Button
               key={c.idx}
               variant={c.idx === selectedIdx ? "default" : "outline"}
               size="sm"
               onClick={() => api.syncSelect(c.idx)}
-              className="h-auto py-2 flex flex-col items-start gap-1"
+              className="h-auto py-2 flex flex-col items-center justify-center gap-1"
             >
               <span className="font-medium">{c.name}</span>
               <Badge variant="secondary">mag {c.magnitude.toFixed(1)}</Badge>
