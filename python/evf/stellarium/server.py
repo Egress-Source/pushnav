@@ -82,6 +82,15 @@ class StellariumServer:
         self._server_sock: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
+        # Reset cached object metadata whenever the GOTO target changes — the
+        # name is tied to a specific target and Stellarium's API call is
+        # asynchronous, so the previous name might otherwise linger on a new
+        # target arriving from a different source (LX200, dev inject).
+        if self._goto_target is not None:
+            self._goto_target.add_on_change(self._reset_object_cache)
+
+    def _reset_object_cache(self) -> None:
+        self._stellarium_object = None
 
     def start(self) -> None:
         self._stop_event.clear()

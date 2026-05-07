@@ -68,7 +68,7 @@ export function TrackingStep({ state }: { state: EnginePayload }) {
         {nav?.active && (
           <div className="space-y-1">
             <div>
-              Target: <strong>{nav.target_name ?? "—"}</strong>
+              Target: <strong>{nav.target_name ?? "N/A"}</strong>
               <Button variant="ghost" size="sm" onClick={() => api.clearGoto()} className="ml-2">
                 Clear
               </Button>
