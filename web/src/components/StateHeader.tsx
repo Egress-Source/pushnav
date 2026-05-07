@@ -8,7 +8,7 @@ interface Props {
 }
 
 const NEXT_ACTION: Record<EngineState, string> = {
-  SETUP: "Focus camera, set exposure, then tap Begin Sync",
+  SETUP: "Make stars look sharp — adjust Exposure if needed, then tap Next",
   SYNC: "Center a star in your eyepiece, tap Solve frame",
   SYNC_CONFIRM: "Tap the star you actually centered",
   CALIBRATE: "Push the scope UP and hold steady",
