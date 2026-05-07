@@ -8,7 +8,6 @@ import { Splash } from "@/components/splash/Splash";
 import { ErrorModal } from "@/components/ErrorModal";
 import { StateHeader } from "@/components/StateHeader";
 import { StepIndicator } from "@/components/StepIndicator";
-import { PlateSolveStats } from "@/components/PlateSolveStats";
 import { DebugPanel } from "@/components/debug/DebugPanel";
 
 function useLocalStorageBool(key: string, defaultValue: boolean) {
@@ -48,7 +47,6 @@ export default function App() {
                 showStars={showStars}
                 setShowStars={setShowStars}
               />
-              <PlateSolveStats state={state} />
               {state.dev_mode && <DebugPanel state={state} />}
             </div>
           </div>
