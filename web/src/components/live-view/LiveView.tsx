@@ -18,7 +18,7 @@ export function LiveView({ state, showStars }: Props) {
     NO_STARS_STATES.includes(state.state) && state.failures >= 3;
   return (
     <div
-      className="relative bg-black w-full"
+      className="relative bg-black w-full overflow-hidden rounded-xl border"
       style={{ aspectRatio: `${image_w} / ${image_h}` }}
     >
       <img

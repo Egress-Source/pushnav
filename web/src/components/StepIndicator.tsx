@@ -11,15 +11,15 @@ const STEPS: { num: number; label: string; states: EngineState[] }[] = [
 export function StepIndicator({ state }: { state: EnginePayload }) {
   const currentState = state.state;
   return (
-    <div className="grid grid-cols-4 w-full text-sm font-medium select-none">
+    <div className="grid grid-cols-4 w-full overflow-hidden rounded-xl border text-sm font-medium select-none">
       {STEPS.map((step, i) => {
         const active = step.states.includes(currentState);
         return (
           <div
             key={step.num}
             className={cn(
-              "px-2 py-2 text-center border border-border",
-              i > 0 && "border-l-0",
+              "px-2 py-2 text-center",
+              i > 0 && "border-l",
               active
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground",
