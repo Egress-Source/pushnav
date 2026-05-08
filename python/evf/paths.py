@@ -162,15 +162,6 @@ def camera_binary() -> Path:
     )
 
 
-def web_dir() -> Path:
-    """Path to data/web/ directory (mobile web interface assets)."""
-    if _BUNDLE_MODE:
-        return _RESOURCES / "web"
-    if _LINUX_RELEASE or _WINDOWS_RELEASE:
-        return _RELEASE_ROOT / "data" / "web"
-    return _REPO_ROOT / "data" / "web"
-
-
 def web_dist_dir() -> Path:
     """Path to the built React app (web/dist/) — present only in release or after `npm run build`."""
     if _BUNDLE_MODE:

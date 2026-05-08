@@ -17,8 +17,9 @@
 
 """Mobile web interface — aiohttp HTTP + WebSocket server.
 
-Serves data/web/index.html and pushes JSON state at ~10 Hz over WebSocket.
-Runs in a dedicated daemon thread with its own asyncio event loop.
+Serves the React build under web_dist_dir() and pushes JSON state at ~10 Hz
+over WebSocket. Runs in a dedicated daemon thread with its own asyncio event
+loop.
 """
 
 import asyncio
@@ -38,7 +39,7 @@ from evf.engine.navigation import compute_navigation, edge_arrow_position
 from evf.engine.pointing import PointingState
 from evf.engine.state import StateMachine
 from evf.network import local_ip
-from evf.paths import sounds_dir, web_dir
+from evf.paths import sounds_dir, web_dist_dir
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ _MAX_MJPEG_CLIENTS = 4
 _MJPEG_BOUNDARY = b"frame"
 _MJPEG_INTERVAL = 0.1  # 10 Hz
 
-# Must match window.py constants exactly
+# Camera image geometry — must match the React UI's overlay assumptions.
 _FOV_H = 8.86   # horizontal FOV in degrees
 _IMG_W = 1280
 _IMG_H = 720
@@ -74,7 +75,6 @@ class EngineActions(Protocol):
 def _compute_origin(config: ConfigManager) -> tuple[float, float]:
     """Pixel position of the sync offset (pointing center) in image coords.
 
-    Mirrors window.py._sync_offset_pixel() exactly.
     Falls back to image center when no sync calibration is available.
     """
     cx, cy = _IMG_W / 2.0, _IMG_H / 2.0
@@ -119,9 +119,12 @@ class WebServer:
     """HTTP + WebSocket server for the mobile web interface.
 
     Always-on subsystem: started with the engine, stopped on shutdown.
-    HTTP GET /          — serves data/web/index.html
+    HTTP GET /          — serves the React build (web_dist_dir / index.html)
+    HTTP GET /static/*  — React build assets (when web_dist_dir() exists)
     HTTP GET /sounds/*  — serves WAV audio files
+    HTTP GET /frame.mjpg — multipart MJPEG of the latest camera frame
     WebSocket /ws       — pushes JSON state at ~10 Hz to all clients
+    HTTP POST /api/*    — wizard, controls, settings, dev actions
     """
 
     def __init__(
@@ -223,11 +226,9 @@ class WebServer:
         app.router.add_post("/api/dev/inject-target", self._api_dev_inject_target)
         app.router.add_post("/api/dev/capture-frame", self._api_dev_capture_frame)
         app.router.add_static("/sounds", sounds_dir(), name="sounds")
-        from evf.paths import web_dist_dir
         dist = web_dist_dir()
         if dist.exists():
             app.router.add_static("/static", dist, name="react_static")
-        app.router.add_static("/assets", web_dir(), name="assets")
 
         runner = web.AppRunner(app)
         await runner.setup()
@@ -246,13 +247,24 @@ class WebServer:
 
         await self._broadcast_loop()
 
-    async def _handle_index(self, request: web.Request) -> web.FileResponse:
-        """Serve the React app shell. Falls back to legacy data/web/index.html if dist missing."""
-        from evf.paths import web_dist_dir
+    async def _handle_index(self, request: web.Request) -> web.StreamResponse:
+        """Serve the React app shell from web_dist_dir().
+
+        Returns 503 when the React build is missing (dev mode without
+        ``npm run build``); the dev workflow uses Vite on port 5000 instead.
+        """
         dist = web_dist_dir()
-        if (dist / "index.html").exists():
-            return web.FileResponse(dist / "index.html")
-        return web.FileResponse(web_dir() / "index.html")
+        index = dist / "index.html"
+        if index.exists():
+            return web.FileResponse(index)
+        return web.Response(
+            status=503,
+            text=(
+                "React build not found at "
+                f"{dist}. Run 'npm run build' in web/ or use "
+                "'npm run dev' (Vite on :5000) for dev."
+            ),
+        )
 
     # -- MJPEG frame stream ---------------------------------------------------
 
@@ -566,8 +578,7 @@ class WebServer:
         # target marker at its actual position in the camera image. compute_navigation
         # returns coords assuming "image center == pointing center", but the
         # eyepiece's projected center is offset by (dx_off, dy_off) from the
-        # camera image center. DPG's _draw_navigation_overlay applied this in
-        # the CONVERGE branch (window.py:~1380) — keeping parity here.
+        # camera image center.
         offset_pixel_x = nav.pixel_x + dx_off if nav.pixel_x is not None else None
         offset_pixel_y = nav.pixel_y + dy_off if nav.pixel_y is not None else None
 
