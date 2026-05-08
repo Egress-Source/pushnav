@@ -107,6 +107,11 @@ export interface EnginePayload {
   webserver: { url: string | null };
   audio_enabled: boolean;
   camera: CameraBlock;
+  location: {
+    latitude: number | null;
+    longitude: number | null;
+    source: "stellarium" | "manual" | null;
+  };
   dev_mode: boolean;
   min_matches: number;
   max_prob: number;
