@@ -17,6 +17,8 @@ export const api = {
   useCalibration: () => post("/api/calibration/use-previous"),
   setControl: (name: string, value: number) => post("/api/control", { name, value }),
   clearGoto: () => post("/api/goto/clear"),
+  setGoto: (ra_deg: number, dec_deg: number) =>
+    post("/api/goto/set", { ra_deg, dec_deg }),
   setSettings: (s: { audio_enabled?: boolean; hidpi?: boolean }) =>
     post("/api/settings", s),
   setAdvanced: (s: { min_matches?: number; max_prob?: number }) =>
