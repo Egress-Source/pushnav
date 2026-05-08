@@ -59,15 +59,30 @@ function Reticle({
   );
 }
 
-/** Arrow tip with tail. angle: clockwise from up. */
-function ArrowWithTail({
+/** Comet-style arrow: leading polygon at full opacity, fading ghosts trailing
+ * behind. angleDeg is clockwise from up (the polygon's tip points to (0,-22)
+ * in its local frame; +y in that frame is "behind" the tip). */
+function CometArrow({
   cx, cy, angleDeg, color = "rgba(255, 100, 50, 1)",
 }: { cx: number; cy: number; angleDeg: number; color?: string }) {
-  // Polygon points designed assuming "up" (angle=0): tip at (0, -22), base wide,
-  // tail extending downward.
+  const ghosts = [0, 1, 2, 3, 4];
   return (
     <g transform={`translate(${cx}, ${cy}) rotate(${angleDeg})`}>
-      <polygon points="0,-22 -11,0 -3,0 -3,18 3,18 3,0 11,0" fill={color} />
+      {ghosts
+        .slice()
+        .reverse()
+        .map((i) => (
+          <g
+            key={i}
+            transform={`translate(0 ${i * 9})`}
+            style={{ opacity: 1 - i * 0.18 }}
+          >
+            <polygon
+              points="0,-22 -11,0 -3,0 -3,18 3,18 3,0 11,0"
+              fill={color}
+            />
+          </g>
+        ))}
     </g>
   );
 }
@@ -104,9 +119,11 @@ export function NavOverlay({ state }: Props) {
         <Reticle cx={ox} cy={oy} color="rgba(120, 25, 25, 0.63)"
                  ringR={12} armInner={4} armOuter={20} strokeW={1} />
         <line x1={ox} y1={oy} x2={tipX} y2={tipY}
-              stroke="rgba(255, 100, 50, 0.9)" strokeWidth={2} />
-        <ArrowWithTail cx={tipX} cy={tipY}
-                       angleDeg={(nav.edge_angle_deg + 180) % 360} />
+              stroke="rgba(255, 100, 50, 0.9)" strokeWidth={2}
+              strokeDasharray="8 6"
+              className="pushnav-marching-ants" />
+        <CometArrow cx={tipX} cy={tipY}
+                    angleDeg={(nav.edge_angle_deg + 180) % 360} />
         <Pill x={labelX} y={labelY - labelOffsetX * 0}
               text={formatDist(nav.separation_deg)}
               color="rgba(255, 100, 50, 1)" />

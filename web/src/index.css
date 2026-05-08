@@ -159,3 +159,10 @@
   --ring:                   oklch(0.55  0.24 22);
 }
 
+/* PushNav animations */
+@keyframes pushnav-ants {
+  to { stroke-dashoffset: -14; }
+}
+.pushnav-marching-ants {
+  animation: pushnav-ants 0.6s linear infinite;
+}
