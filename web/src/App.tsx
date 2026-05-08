@@ -38,7 +38,13 @@ export default function App() {
           {/* Header + grid always span at least one viewport height. The grid
               expands (flex-1) to consume any leftover space so any below-the-
               fold content (DebugPanel) always starts past the viewport. */}
-          <section className="min-h-screen flex flex-col">
+          <section
+            className={
+              view === "catalog"
+                ? "h-screen flex flex-col overflow-hidden"
+                : "min-h-screen flex flex-col"
+            }
+          >
             <div className="max-w-5xl mx-auto px-2 pt-2 w-full shrink-0">
               <StateHeader state={state} view={view} onViewChange={setView} />
             </div>
