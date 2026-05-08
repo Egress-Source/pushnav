@@ -11,6 +11,7 @@ import { ErrorModal } from "@/components/ErrorModal";
 import { StateHeader } from "@/components/StateHeader";
 import { StepIndicator } from "@/components/StepIndicator";
 import { DebugPanel } from "@/components/debug/DebugPanel";
+import { WhatToSee } from "@/components/catalog/WhatToSee";
 
 function useLocalStorageBool(key: string, defaultValue: boolean) {
   const [v, setV] = useState<boolean>(() => {
@@ -41,30 +42,36 @@ export default function App() {
             <div className="max-w-5xl mx-auto px-2 pt-2 w-full shrink-0">
               <StateHeader state={state} view={view} onViewChange={setView} />
             </div>
-            <div className="grid md:grid-cols-3 gap-2 max-w-5xl mx-auto px-2 pt-3 pb-2 items-stretch w-full flex-1">
-              <div className="md:col-span-2 flex flex-col gap-2">
-                <LiveView state={state} showStars={showStars} />
-                <StepIndicator state={state} />
-                {/* Wizard fills the remaining column height so its bottom
-                    aligns with the right column's Settings card. The
-                    [&>*]:flex-1 selector targets Wizard's direct DOM child
-                    (the Card emitted by whichever step renders) and makes
-                    it flex-1 within this growing wrapper. */}
-                <div className="flex-1 flex flex-col [&>*]:flex-1">
-                  <Wizard state={state} />
+            {view === "navigation" ? (
+              <div className="grid md:grid-cols-3 gap-2 max-w-5xl mx-auto px-2 pt-3 pb-2 items-stretch w-full flex-1">
+                <div className="md:col-span-2 flex flex-col gap-2">
+                  <LiveView state={state} showStars={showStars} />
+                  <StepIndicator state={state} />
+                  {/* Wizard fills the remaining column height so its bottom
+                      aligns with the right column's Settings card. The
+                      [&>*]:flex-1 selector targets Wizard's direct DOM child
+                      (the Card emitted by whichever step renders) and makes
+                      it flex-1 within this growing wrapper. */}
+                  <div className="flex-1 flex flex-col [&>*]:flex-1">
+                    <Wizard state={state} />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <CameraControls controls={state.controls} />
+                  <Connectivity state={state} />
+                  <Settings
+                    state={state}
+                    showStars={showStars}
+                    setShowStars={setShowStars}
+                    className="flex-1"
+                  />
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <CameraControls controls={state.controls} />
-                <Connectivity state={state} />
-                <Settings
-                  state={state}
-                  showStars={showStars}
-                  setShowStars={setShowStars}
-                  className="flex-1"
-                />
+            ) : (
+              <div className="max-w-5xl mx-auto px-2 pt-3 pb-2 w-full flex-1">
+                <WhatToSee state={state} />
               </div>
-            </div>
+            )}
           </section>
           {state.dev_mode && (
             <section className="max-w-5xl mx-auto px-2 pb-2 w-full">
