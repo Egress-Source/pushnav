@@ -2,22 +2,23 @@
 
 from unittest.mock import MagicMock
 
+from evf.config.manager import ConfigManager
 from evf.engine.engine import Engine
 
 
-def test_location_none_by_default(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    eng = Engine(dev_mode=False)
-    eng._config._dir = tmp_path / "evf-config"
-    eng._config._path = eng._config._dir / "config.json"
+def _make_engine(tmp_path):
+    """Build an Engine with config isolated to tmp_path."""
+    cfg = ConfigManager(config_dir=tmp_path / "evf-config")
+    return Engine(dev_mode=False, config=cfg)
+
+
+def test_location_none_by_default(tmp_path):
+    eng = _make_engine(tmp_path)
     assert eng.location == {"latitude": None, "longitude": None, "source": None}
 
 
-def test_location_from_manual_config(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    eng = Engine(dev_mode=False)
-    eng._config._dir = tmp_path / "evf-config"
-    eng._config._path = eng._config._dir / "config.json"
+def test_location_from_manual_config(tmp_path):
+    eng = _make_engine(tmp_path)
     eng.set_location(13.0878, 80.2785)
     assert eng.location == {
         "latitude": 13.0878,
@@ -26,11 +27,8 @@ def test_location_from_manual_config(tmp_path, monkeypatch):
     }
 
 
-def test_location_from_stellarium_takes_precedence(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    eng = Engine(dev_mode=False)
-    eng._config._dir = tmp_path / "evf-config"
-    eng._config._path = eng._config._dir / "config.json"
+def test_location_from_stellarium_takes_precedence(tmp_path):
+    eng = _make_engine(tmp_path)
     eng.set_location(13.0878, 80.2785)  # manual
 
     # Mock a Stellarium server with a location
@@ -46,11 +44,8 @@ def test_location_from_stellarium_takes_precedence(tmp_path, monkeypatch):
     assert loc["longitude"] == -0.1
 
 
-def test_set_location_clear(tmp_path, monkeypatch):
-    monkeypatch.setenv("HOME", str(tmp_path))
-    eng = Engine(dev_mode=False)
-    eng._config._dir = tmp_path / "evf-config"
-    eng._config._path = eng._config._dir / "config.json"
+def test_set_location_clear(tmp_path):
+    eng = _make_engine(tmp_path)
     eng.set_location(13.0878, 80.2785)
     eng.set_location(None, None)
     assert eng.location == {"latitude": None, "longitude": None, "source": None}

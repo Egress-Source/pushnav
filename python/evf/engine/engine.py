@@ -81,12 +81,17 @@ class Engine:
     calls back into the engine for tracking toggle and camera control changes.
     """
 
-    def __init__(self, *, dev_mode: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        dev_mode: bool = False,
+        config: ConfigManager | None = None,
+    ) -> None:
         # Shared data structures
         self._frame_buffer = LatestFrame()
         self._pointing_state = PointingState()
         self._state_machine = StateMachine()
-        self._config = ConfigManager()
+        self._config = config if config is not None else ConfigManager()
         self._goto_target = GotoTarget()
         self._app_version = _read_app_version()
         self._dev_mode = dev_mode
