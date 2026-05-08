@@ -64,9 +64,12 @@ export function WhatToSee({ state, onSwitchToNavigation }: Props) {
   }
 
   return (
-    <div className="flex flex-col lg:grid lg:grid-cols-3 lg:grid-rows-1 gap-3 h-full min-h-0 overflow-y-auto lg:overflow-visible pushnav-scrollbar">
-      {/* Left island: filters + selected chips + time + scrollable table */}
-      <Card className="lg:col-span-2 flex flex-col gap-2 px-3 py-3 lg:min-h-0">
+    <div className="flex flex-col lg:grid lg:grid-cols-3 lg:grid-rows-1 gap-3 h-full min-h-0 overflow-y-auto lg:overflow-hidden pushnav-scrollbar">
+      {/* Left island: filters + selected chips + time + scrollable table.
+          At narrow widths cap the Card at 70vh so the table-wrapper inside
+          has a finite height to overflow against; at lg+ the grid row
+          provides the height (max-h-none lets it stretch). */}
+      <Card className="lg:col-span-2 flex flex-col gap-2 px-3 py-3 min-h-0 max-h-[70vh] lg:max-h-none">
         <CatalogFilters value={filters} onChange={setFilters} />
         <SelectedFiltersLine value={filters} />
 
@@ -84,7 +87,7 @@ export function WhatToSee({ state, onSwitchToNavigation }: Props) {
 
         <div className="border-t border-border/60 -mx-3" />
 
-        <div className="lg:flex-1 lg:min-h-0 lg:overflow-y-auto pushnav-scrollbar -mx-3 px-3">
+        <div className="flex-1 min-h-0 overflow-y-auto pushnav-scrollbar -mx-3 px-3">
           <CatalogTable
             objects={objects}
             filters={filters}
