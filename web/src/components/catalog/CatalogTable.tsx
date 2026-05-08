@@ -125,9 +125,13 @@ export function CatalogTable({
                 selectedId === obj.id && "bg-primary/15"
               )}
             >
-              <td className="px-2 py-1.5">
-                <span className="font-mono">{obj.designation}</span>{" "}
-                <span className="text-muted-foreground">{obj.name}</span>
+              <td className="px-2 py-1.5 leading-tight">
+                <div className="text-foreground">{obj.name}</div>
+                {obj.designation !== obj.name && (
+                  <div className="text-xs text-muted-foreground font-mono">
+                    {obj.designation}
+                  </div>
+                )}
               </td>
               <td className="px-2 py-1.5 text-muted-foreground">
                 {obj.subtype ?? obj.type}
