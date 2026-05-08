@@ -64,7 +64,7 @@ export function WhatToSee({ state, onSwitchToNavigation }: Props) {
   }
 
   return (
-    <div className="flex flex-col lg:grid lg:grid-cols-3 lg:grid-rows-1 gap-3 h-full lg:min-h-0">
+    <div className="flex flex-col lg:grid lg:grid-cols-3 lg:grid-rows-1 gap-3 h-full min-h-0 overflow-y-auto lg:overflow-visible pushnav-scrollbar">
       {/* Left island: filters + selected chips + time + scrollable table */}
       <Card className="lg:col-span-2 flex flex-col gap-2 px-3 py-3 lg:min-h-0">
         <CatalogFilters value={filters} onChange={setFilters} />
