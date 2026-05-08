@@ -29,9 +29,14 @@ from evf.engine.engine import Engine
 
 logger = logging.getLogger(__name__)
 
-_VP_WIDTH = 1280 // 2 + 320  # 960 — content width only
-_VP_HEIGHT = 720 // 2 + 60  # 420
-_CHROME_BUFFER = 60  # Windows chrome + side-panel padding; does not scale with DPI
+# Window dimensions sized to the React UI's `max-w-7xl` (1280px) layout
+# plus minimal window chrome. Width fits the content area + ~30px of OS
+# chrome on each side; height fits header + LiveView at 16:9 + StepIndicator
+# + Wizard with comfortable margins. Resizable, so the user can adjust.
+_VP_WIDTH = 1320
+_VP_HEIGHT = 880
+_CHROME_BUFFER = 0  # legacy DPG nudge — pywebview's content area already
+                    # excludes window chrome, no extra padding needed
 
 
 def _windows_primary_monitor_scale() -> int:
