@@ -54,7 +54,7 @@ export function DebugPanel({ state }: Props) {
       <CardHeader>
         <CardTitle className="text-base text-primary">Debug</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm">
+      <CardContent className="space-y-1.5 text-sm">
         <div>
           <Button variant="outline" size="sm" onClick={onCapture} className="w-full">
             Capture Frame

@@ -14,7 +14,7 @@ export function CameraControls({ controls }: Props) {
       <CardHeader>
         <CardTitle>Camera</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-3">
         {controls.map((c) => (
           <ControlRow key={c.id ?? c.name} control={c} />
         ))}
