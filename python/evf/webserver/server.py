@@ -63,6 +63,7 @@ class EngineActions(Protocol):
     def use_previous_calibration(self) -> None: ...
     def set_control(self, name: str, value: int) -> None: ...
     def clear_goto_target(self) -> None: ...
+    def set_goto_target(self, ra_deg: float, dec_deg: float) -> None: ...
     def set_audio_enabled(self, enabled: bool) -> None: ...
     def set_hidpi(self, enabled: bool) -> None: ...
     def inject_sample(self, name: str | None) -> None: ...
@@ -223,6 +224,7 @@ class WebServer:
         app.router.add_post("/api/calibration/use-previous", self._api_use_previous_calibration)
         app.router.add_post("/api/control", self._api_set_control)
         app.router.add_post("/api/goto/clear", self._api_goto_clear)
+        app.router.add_post("/api/goto/set", self._api_goto_set)
         app.router.add_post("/api/settings", self._api_settings)
         app.router.add_post("/api/dev/inject-sample", self._api_dev_inject_sample)
         app.router.add_post("/api/dev/inject-target", self._api_dev_inject_target)
@@ -391,6 +393,14 @@ class WebServer:
 
     async def _api_goto_clear(self, request):
         return await self._handle_api(request, lambda: self._actions.clear_goto_target())
+
+    async def _api_goto_set(self, request: web.Request) -> web.Response:
+        body = await request.json()
+        ra = float(body["ra_deg"])
+        dec = float(body["dec_deg"])
+        return await self._handle_api(
+            request, lambda: self._actions.set_goto_target(ra, dec)
+        )
 
     async def _api_settings(self, request):
         body = await request.json()

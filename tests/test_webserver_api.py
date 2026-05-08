@@ -80,6 +80,18 @@ async def test_set_control(server_and_actions):
 
 
 @pytest.mark.asyncio
+async def test_goto_set_with_ra_dec(server_and_actions):
+    ws, actions = server_and_actions
+    async with ClientSession() as s:
+        async with s.post(
+            f"http://127.0.0.1:{ws._port}/api/goto/set",
+            json={"ra_deg": 79.1723, "dec_deg": 45.998},
+        ) as resp:
+            assert resp.status == 204
+    actions.set_goto_target.assert_called_once_with(79.1723, 45.998)
+
+
+@pytest.mark.asyncio
 async def test_settings_audio(server_and_actions):
     ws, actions = server_and_actions
     async with ClientSession() as s:
