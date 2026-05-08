@@ -133,7 +133,7 @@ export function CatalogTable({
                 {obj.subtype ?? obj.type}
               </td>
               <td className="px-2 py-1.5 tabular-nums">
-                {obj.magnitude !== undefined ? obj.magnitude.toFixed(1) : "—"}
+                {typeof obj.magnitude === "number" ? obj.magnitude.toFixed(1) : "—"}
               </td>
               <td className="px-2 py-1.5 tabular-nums">{Math.round(altDeg)}°</td>
               <td className="px-2 py-1.5 font-mono">{azimuthCompass(azDeg)}</td>

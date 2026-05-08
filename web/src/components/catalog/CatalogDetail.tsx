@@ -93,7 +93,7 @@ export function CatalogDetail({ object, location, evalAt }: Props) {
         <Fact label="Dec" value={object.declination} mono />
         <Fact
           label="Mag"
-          value={object.magnitude !== undefined ? object.magnitude.toFixed(1) : "—"}
+          value={typeof object.magnitude === "number" ? object.magnitude.toFixed(1) : "—"}
         />
         <Fact label="Constellation" value={object.constellation} />
         <Fact

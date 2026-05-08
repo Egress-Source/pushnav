@@ -27,9 +27,9 @@ export interface CatalogObject {
   type: ObjectType;
   subtype?: string;
   constellation: string;
-  magnitude?: number;
-  distance?: string;
-  bestViewing?: string;
+  magnitude: number | null;
+  distance: string | null;
+  bestViewing: string | null;
   difficulty: Difficulty;
   visualReward: VisualReward;
   lpTolerance: LpTolerance;
