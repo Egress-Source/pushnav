@@ -28,8 +28,15 @@ export function AxesOverlay({ state }: Props) {
   // SVG (CW) rotation needed so each label's baseline runs along the axis
   // it sits on. UP/DOWN sit on the mount-right axis at angle finder_rotation;
   // RIGHT/LEFT sit on the mount-up axis (perpendicular, finder_rotation - 90).
-  const upDownRot = state.finder_rotation;
-  const leftRightRot = state.finder_rotation - 90;
+  // Normalised so letters never end up upside-down: when the raw rotation
+  // would land in (90°, 270°), flip by 180° — the axis line is symmetric so
+  // reading it the other way is fine, but the text needs to stay right-side up.
+  const readable = (deg: number): number => {
+    const r = ((deg % 360) + 360) % 360;
+    return r > 90 && r < 270 ? (r + 180) % 360 : r;
+  };
+  const upDownRot = readable(state.finder_rotation);
+  const leftRightRot = readable(state.finder_rotation - 90);
   const labels = [
     { text: "UP",    x: cx - rightDx * labelDist, y: cy - rightDy * labelDist, rot: upDownRot },
     { text: "DOWN",  x: cx + rightDx * labelDist, y: cy + rightDy * labelDist, rot: upDownRot },
