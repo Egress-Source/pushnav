@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useEngineState } from "@/hooks/useEngineState";
+import { useView } from "@/hooks/useView";
 import { LiveView } from "@/components/live-view/LiveView";
 import { CameraControls } from "@/components/controls/CameraControls";
 import { Wizard } from "@/components/wizard/Wizard";
@@ -25,6 +26,7 @@ function useLocalStorageBool(key: string, defaultValue: boolean) {
 export default function App() {
   const state = useEngineState();
   const [showStars, setShowStars] = useLocalStorageBool("pushnav.show_stars", false);
+  const [view, setView] = useView();
 
   return (
     <>
@@ -37,7 +39,7 @@ export default function App() {
               fold content (DebugPanel) always starts past the viewport. */}
           <section className="min-h-screen flex flex-col">
             <div className="max-w-5xl mx-auto px-2 pt-2 w-full shrink-0">
-              <StateHeader state={state} />
+              <StateHeader state={state} view={view} onViewChange={setView} />
             </div>
             <div className="grid md:grid-cols-3 gap-2 max-w-5xl mx-auto px-2 pt-3 pb-2 items-stretch w-full flex-1">
               <div className="md:col-span-2 flex flex-col gap-2">

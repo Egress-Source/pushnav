@@ -1,11 +1,15 @@
 import { Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TabSwitch } from "@/components/TabSwitch";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import type { EnginePayload } from "@/lib/types";
+import type { View } from "@/hooks/useView";
 
 interface Props {
   state: EnginePayload;
+  view: View;
+  onViewChange: (v: View) => void;
 }
 
 const TRACKING_STATES = ["CALIBRATE", "WARMING_UP", "TRACKING"];
@@ -95,16 +99,19 @@ function HeaderStats({
   );
 }
 
-export function StateHeader({ state }: Props) {
+export function StateHeader({ state, view, onViewChange }: Props) {
   return (
     <>
-      {/* Top header: logo + (inline stats at lg+) + audio toggle */}
+      {/* Top header: logo + tab switch + (inline stats at lg+) + audio toggle */}
       <div className="flex items-center justify-between gap-4 pb-2 border-b border-border">
-        <img
-          src={`${import.meta.env.BASE_URL}inapp-title.png`}
-          alt="PushNav"
-          className="h-8 w-auto"
-        />
+        <div className="flex items-center gap-4">
+          <img
+            src={`${import.meta.env.BASE_URL}inapp-title.png`}
+            alt="PushNav"
+            className="h-8 w-auto"
+          />
+          <TabSwitch view={view} onChange={onViewChange} />
+        </div>
         <div className="flex items-center gap-4">
           <HeaderStats state={state} className="hidden lg:flex" />
           <Button
