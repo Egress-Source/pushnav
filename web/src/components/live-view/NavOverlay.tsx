@@ -145,14 +145,24 @@ export function NavOverlay({ state }: Props) {
         <circle cx={ox} cy={oy} r={lockR}
                 stroke="rgba(200, 50, 50, 0.24)" strokeWidth={1} fill="none" />
         <line x1={ox} y1={oy} x2={tx} y2={ty}
-              stroke="rgba(255, 70, 70, 0.78)" strokeWidth={1} />
-        {/* Target marker at projected position */}
-        <g stroke="rgba(255, 70, 70, 0.78)" strokeWidth={1} fill="none">
-          <circle cx={tx} cy={ty} r={8} />
-          <line x1={tx - 14} y1={ty} x2={tx - 3} y2={ty} />
-          <line x1={tx + 3} y1={ty} x2={tx + 14} y2={ty} />
-          <line x1={tx} y1={ty - 14} x2={tx} y2={ty - 3} />
-          <line x1={tx} y1={ty + 3} x2={tx} y2={ty + 14} />
+              stroke="rgba(255, 70, 70, 0.78)" strokeWidth={1}
+              strokeDasharray="8 6"
+              className="pushnav-marching-ants" />
+        {/* Target marker — glides between WS updates instead of teleporting.
+            Inner elements positioned at (0,0); outer <g>'s translate animates. */}
+        <g
+          style={{
+            transform: `translate(${tx}px, ${ty}px)`,
+            transition: "transform 100ms linear",
+          }}
+        >
+          <g stroke="rgba(255, 70, 70, 0.78)" strokeWidth={1} fill="none">
+            <circle cx={0} cy={0} r={8} />
+            <line x1={-14} y1={0} x2={-3} y2={0} />
+            <line x1={3} y1={0} x2={14} y2={0} />
+            <line x1={0} y1={-14} x2={0} y2={-3} />
+            <line x1={0} y1={3} x2={0} y2={14} />
+          </g>
         </g>
         <Pill x={tx + 50} y={ty - 18}
               text={formatDist(nav.separation_deg)}
