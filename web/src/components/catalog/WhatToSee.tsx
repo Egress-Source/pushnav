@@ -10,6 +10,7 @@ import {
 } from "./CatalogFilters";
 import { CatalogTable } from "./CatalogTable";
 import { CatalogDetail } from "./CatalogDetail";
+import { LocationPanel } from "./LocationPanel";
 import { TimeControl } from "./TimeControl";
 
 const objects = objectsData as CatalogObject[];
@@ -46,23 +47,6 @@ export function WhatToSee({ state, onSwitchToNavigation }: Props) {
     [selectedId],
   );
 
-  if (!location) {
-    return (
-      <Card className="p-6 text-sm">
-        <h3 className="font-semibold mb-2">Set your observing location</h3>
-        <p className="text-muted-foreground mb-3">
-          The catalog computes which objects are above the horizon for you. We
-          need your latitude and longitude to do that.
-        </p>
-        <p className="text-muted-foreground">
-          Open <span className="text-foreground">Settings → Location</span> to
-          enter your coordinates manually, or connect Stellarium and we'll pick
-          up its location automatically.
-        </p>
-      </Card>
-    );
-  }
-
   return (
     <div className="flex flex-col lg:grid lg:grid-cols-3 lg:grid-rows-1 gap-3 lg:h-full lg:min-h-0 lg:overflow-hidden">
       {/* Left island: filters + selected chips + time + scrollable table.
@@ -88,26 +72,34 @@ export function WhatToSee({ state, onSwitchToNavigation }: Props) {
         <div className="border-t border-border/60 -mx-3" />
 
         <div className="flex-1 min-h-0 overflow-y-auto pushnav-scrollbar -mx-3 px-3">
-          <CatalogTable
-            objects={objects}
-            filters={filters}
-            location={location}
-            evalAt={evalAt}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
+          {location ? (
+            <CatalogTable
+              objects={objects}
+              filters={filters}
+              location={location}
+              evalAt={evalAt}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground p-2">
+              Set your observing location on the right to see visible objects.
+            </div>
+          )}
         </div>
       </Card>
 
-      {/* Right island: detail panel — Card is the grid item directly so it
-          stretches to the full row height, matching the left island. */}
-      <CatalogDetail
-        object={selected}
-        location={location}
-        evalAt={evalAt}
-        onTargetSet={onSwitchToNavigation}
-        className="lg:col-span-1 lg:min-h-0 lg:overflow-y-auto pushnav-scrollbar"
-      />
+      {/* Right island: Location panel + horizontal divider + catalog detail. */}
+      <Card className="lg:col-span-1 lg:min-h-0 lg:overflow-y-auto pushnav-scrollbar flex flex-col gap-3 px-4 py-3 text-sm">
+        <LocationPanel state={state} />
+        <div className="border-t border-border/60 -mx-4" />
+        <CatalogDetail
+          object={selected}
+          location={location}
+          evalAt={evalAt}
+          onTargetSet={onSwitchToNavigation}
+        />
+      </Card>
     </div>
   );
 }

@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { altAzFromRaDec, parseDec, parseRA, riseSetTransitUtc } from "@/lib/astronomy";
@@ -12,7 +11,6 @@ interface Props {
   location: { latitude: number; longitude: number } | null;
   evalAt: Date;
   onTargetSet?: () => void;
-  className?: string;
 }
 
 function formatTimeLocal(t: Date | null): string {
@@ -31,16 +29,15 @@ export function CatalogDetail({
   location,
   evalAt,
   onTargetSet,
-  className,
 }: Props) {
   const [setting, setSetting] = useState(false);
   const [setOk, setSetOk] = useState<null | "ok" | "error">(null);
 
   if (!object) {
     return (
-      <Card className={cn("px-4 py-3 text-sm text-muted-foreground", className)}>
+      <div className="text-sm text-muted-foreground">
         Select an object on the left to see details.
-      </Card>
+      </div>
     );
   }
 
@@ -91,7 +88,7 @@ export function CatalogDetail({
     : [];
 
   return (
-    <Card className={cn("px-4 py-3 gap-3 text-sm", className)}>
+    <div className="flex flex-col gap-3 text-sm">
       <div className="flex items-baseline justify-between gap-2 leading-tight">
         <div className="min-w-0">
           <div className="text-base text-foreground truncate">{object.name}</div>
@@ -167,7 +164,7 @@ export function CatalogDetail({
           <span className="text-xs text-destructive ml-auto">Failed</span>
         )}
       </div>
-    </Card>
+    </div>
   );
 }
 
