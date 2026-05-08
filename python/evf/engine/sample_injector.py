@@ -38,10 +38,16 @@ class SampleInjector:
     """Continuously injects a sample JPEG into the frame buffer."""
 
     _INTERVAL = 0.1  # 10 Hz
+    # When injection starts, jump frame_id this far above the camera's current
+    # value so subsequent camera frames are silently rejected by LatestFrame
+    # (which keeps "highest frame_id wins"). At 30 fps the camera takes ~1 year
+    # to catch up to a billion-frame lead — effectively permanent dominance.
+    _DOMINANCE_OFFSET = 1_000_000_000
 
     def __init__(self, frame_buffer: LatestFrame) -> None:
         self._fb = frame_buffer
         self._jpeg: bytes | None = None
+        self._frame_id: int = 0
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
         self._lock = threading.Lock()
@@ -56,26 +62,28 @@ class SampleInjector:
         with self._lock:
             self._jpeg = jpeg_bytes
             self._active_name = name if jpeg_bytes is not None else None
-            if jpeg_bytes is not None and (self._thread is None or not self._thread.is_alive()):
-                self._stop.clear()
-                self._thread = threading.Thread(
-                    target=self._loop, name="sample-injector", daemon=True,
+            if jpeg_bytes is not None:
+                # Leap ahead of the camera so it stops winning the buffer race.
+                _, _, current_id = self._fb.get()
+                self._frame_id = max(
+                    self._frame_id + 1, current_id + self._DOMINANCE_OFFSET,
                 )
-                self._thread.start()
+                if self._thread is None or not self._thread.is_alive():
+                    self._stop.clear()
+                    self._thread = threading.Thread(
+                        target=self._loop, name="sample-injector", daemon=True,
+                    )
+                    self._thread.start()
 
     def _loop(self) -> None:
-        # Dynamically bump our frame_id above whatever's currently in the
-        # buffer so we always win against the camera's stream. The camera at
-        # 30 fps crosses any static offset in under an hour, which silently
-        # broke injection in long-running engine sessions.
         while not self._stop.is_set():
             with self._lock:
                 jpeg = self._jpeg
             if jpeg is None:
                 # No sample selected — exit thread; another set() will restart.
                 return
-            _, _, current_id = self._fb.get()
-            self._fb.set(jpeg, time.monotonic(), current_id + 1)
+            self._frame_id += 1
+            self._fb.set(jpeg, time.monotonic(), self._frame_id)
             self._stop.wait(self._INTERVAL)
 
     def stop(self) -> None:
