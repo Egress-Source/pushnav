@@ -97,7 +97,6 @@ export function Settings({ state, showStars, setShowStars }: Props) {
             certain solves.
           </p>
         </div>
-        <Separator />
         <Button
           variant="outline"
           size="sm"
