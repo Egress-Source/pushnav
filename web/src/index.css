@@ -172,9 +172,12 @@
    Chroma kept low (≤ 0.03) so contrast against the foreground tokens
    stays well above WCAG AA. */
 .dark [data-slot="card"] {
+  /* Lightness ranges 85%–105% of stock --card (0.205); chroma stays
+     at a pure red 0.10 across the whole gradient so colour doesn't
+     desaturate toward gray at the dark end. */
   background-image: linear-gradient(
     180deg,
-    oklch(0.24 0.11 22) 0%,
-    oklch(0.16 0.08 22) 100%
+    oklch(0.215 0.10 22) 0%,
+    oklch(0.174 0.10 22) 100%
   );
 }
