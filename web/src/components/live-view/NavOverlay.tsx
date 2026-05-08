@@ -123,7 +123,7 @@ export function NavOverlay({ state }: Props) {
               strokeDasharray="8 6"
               className="pushnav-marching-ants" />
         <CometArrow cx={tipX} cy={tipY}
-                    angleDeg={(nav.edge_angle_deg + 180) % 360} />
+                    angleDeg={nav.edge_angle_deg} />
         <Pill x={labelX} y={labelY - labelOffsetX * 0}
               text={formatDist(nav.separation_deg)}
               color="rgba(255, 100, 50, 1)" />
