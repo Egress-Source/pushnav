@@ -61,6 +61,7 @@ Supports **Windows**, **macOS**, and **Linux**. The core app is written in Pytho
 
 - **Python 3.12+**
 - **[uv](https://docs.astral.sh/uv/)**: Python package manager
+- **Node.js 20+** with `npm` (for the React UI)
 - A supported UVC camera
 
 ### macOS
@@ -86,6 +87,7 @@ sudo apt install gcc libjpeg-dev libfuse2
 git clone https://github.com/meridianfield/pushnav.git
 cd pushnav
 uv sync
+(cd web && npm install)
 ```
 
 ## Building the Camera Server
@@ -107,31 +109,52 @@ make -C camera/linux
 camera\windows\build.bat
 ```
 
-## Running (Dev Mode)
+## Running
 
-Dev mode runs the Python source directly (no Nuitka compilation needed):
+PushNav has two run modes against the source tree (no Nuitka compile
+needed in either):
 
-**macOS** (builds the camera server automatically):
+### A. One-terminal run with the built React UI (recommended)
+
+Build the React bundle once, then launch the Python app — it serves the
+built UI itself and opens it in a pywebview window:
+
 ```bash
-scripts/run_dev.sh
+(cd web && npm run build)
+uv run python -m evf.main
 ```
 
-**Linux** (build camera server first):
+Re-run `npm run build` whenever you change `web/src/**`.
+
+### B. Two-terminal run with HMR (for active UI work)
+
+Useful when you're iterating on React/Tailwind. The Python engine runs
+headless and Vite serves the UI on port `5000` with hot reload:
+
 ```bash
-make -C camera/linux
-scripts/run_dev_linux.sh
+# terminal 1 — engine + camera, no window
+uv run python -m evf.main --dev --no-window
+
+# terminal 2 — Vite dev server
+(cd web && npm run dev)
 ```
 
-**Windows** (build camera server first):
-```cmd
-camera\windows\build.bat
-scripts\run_dev_windows.bat
-```
+Then open `http://localhost:5000/` in your browser. `--dev` also enables
+the in-app DebugPanel and the `/api/dev/*` endpoints (sample injection,
+frame capture).
 
-Or run directly:
+### Convenience scripts
+
+The helper scripts wrap the camera build and option B together. They
+assume Vite is already running in another terminal:
+
 ```bash
-uv run python -m evf.main --dev
+scripts/run_dev.sh           # macOS — builds Swift camera, then evf.main --dev
+scripts/run_dev_linux.sh     # Linux — assumes you ran `make -C camera/linux` already
+scripts\run_dev_windows.bat  # Windows — assumes camera\windows\build.bat ran first
 ```
+
+For your first run, prefer flow A — it doesn't need a second terminal.
 
 ## Building Release Binaries
 
