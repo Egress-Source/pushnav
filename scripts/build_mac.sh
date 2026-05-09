@@ -49,7 +49,7 @@ if [ ! -f "$CAMERA_BIN" ]; then
 fi
 
 # -------------------------------------------------------------------------
-# Phase 2a: Build React UI
+# Phase 1b: Build React UI
 # -------------------------------------------------------------------------
 echo "==> Building React UI"
 (cd "$REPO_ROOT/web" && npm ci && npm run build)
@@ -59,14 +59,50 @@ if [ ! -f "$REPO_ROOT/web/dist/index.html" ]; then
 fi
 
 # -------------------------------------------------------------------------
-# Phase 2: Build Python with Nuitka (standalone)
+# Phase 1c: Generate app icon (.icns) — must precede Nuitka so the
+#           bundle gets it baked in via --macos-app-icon.
 # -------------------------------------------------------------------------
-echo "==> Building Python app with Nuitka (standalone)"
+echo "==> Generating app icon"
+LOGO="$REPO_ROOT/marketing/logo.png"
+ICONSET="$BUILD_DIR/AppIcon.iconset"
+ICON_PATH="$BUILD_DIR/AppIcon.icns"
+mkdir -p "$ICONSET"
+
+sips -z   16   16 "$LOGO" --out "$ICONSET/icon_16x16.png"      >/dev/null
+sips -z   32   32 "$LOGO" --out "$ICONSET/icon_16x16@2x.png"   >/dev/null
+sips -z   32   32 "$LOGO" --out "$ICONSET/icon_32x32.png"      >/dev/null
+sips -z   64   64 "$LOGO" --out "$ICONSET/icon_32x32@2x.png"   >/dev/null
+sips -z  128  128 "$LOGO" --out "$ICONSET/icon_128x128.png"    >/dev/null
+sips -z  256  256 "$LOGO" --out "$ICONSET/icon_128x128@2x.png" >/dev/null
+sips -z  256  256 "$LOGO" --out "$ICONSET/icon_256x256.png"    >/dev/null
+sips -z  512  512 "$LOGO" --out "$ICONSET/icon_256x256@2x.png" >/dev/null
+sips -z  512  512 "$LOGO" --out "$ICONSET/icon_512x512.png"    >/dev/null
+sips -z 1024 1024 "$LOGO" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
+
+iconutil --convert icns "$ICONSET" --output "$ICON_PATH"
+rm -rf "$ICONSET"
+echo "    Icon: $ICON_PATH"
+
+# -------------------------------------------------------------------------
+# Phase 2: Build Python app with Nuitka (--mode=app)
+# -------------------------------------------------------------------------
+# Nuitka 4.x's options-nanny refuses to compile any code that imports
+# Foundation (pulled in by pywebview's Cocoa backend) unless --mode=app
+# is used. --mode=app implies --standalone and creates the .app bundle
+# with a default Info.plist; we pass app metadata via the --macos-app-*
+# flags instead of writing the plist by hand.
+# -------------------------------------------------------------------------
+echo "==> Building Python app with Nuitka (--mode=app)"
 uv run python -m nuitka \
-    --standalone \
+    --mode=app \
     --static-libpython=no \
     --output-dir="$BUILD_DIR" \
     --output-filename=evf \
+    --macos-app-name="$APP_NAME" \
+    --macos-app-version="$APP_VERSION" \
+    --macos-app-icon="$ICON_PATH" \
+    --macos-signed-app-name="com.pushnav.evf" \
+    --macos-app-protected-resource="NSCameraUsageDescription:PushNav uses the camera to capture telescope finder images for plate solving." \
     --include-package=numpy \
     --include-package=scipy \
     --include-package=PIL \
@@ -91,88 +127,34 @@ uv run python -m nuitka \
     --assume-yes-for-downloads \
     "$REPO_ROOT/python/evf/main.py"
 
-NUITKA_DIST="$BUILD_DIR/main.dist"
-if [ ! -d "$NUITKA_DIST" ]; then
-    echo "ERROR: Nuitka dist not found at $NUITKA_DIST"
+# Nuitka --mode=app names the output directory after the source filename
+# (main.py → main.app); --macos-app-name only sets CFBundleName / display
+# name. Rename so the rest of the script can refer to a stable APP_DIR.
+NUITKA_APP="$BUILD_DIR/main.app"
+if [ ! -d "$NUITKA_APP" ]; then
+    echo "ERROR: Nuitka did not produce $NUITKA_APP"
     exit 1
 fi
+mv "$NUITKA_APP" "$APP_DIR"
 
 # -------------------------------------------------------------------------
-# Phase 2b: Generate app icon (.icns)
+# Phase 3: Drop in resources Nuitka doesn't know about (camera binary,
+# star database, sounds, web bundle, sample images, branding image).
+# Nuitka has already populated Contents/MacOS/ with the Python runtime
+# and Contents/Resources/ with the icon.
 # -------------------------------------------------------------------------
-echo "==> Generating app icon"
-LOGO="$REPO_ROOT/marketing/logo.png"
-ICONSET="$BUILD_DIR/AppIcon.iconset"
-mkdir -p "$ICONSET"
+echo "==> Adding camera + data resources to $APP_NAME.app"
 
-sips -z   16   16 "$LOGO" --out "$ICONSET/icon_16x16.png"      >/dev/null
-sips -z   32   32 "$LOGO" --out "$ICONSET/icon_16x16@2x.png"   >/dev/null
-sips -z   32   32 "$LOGO" --out "$ICONSET/icon_32x32.png"      >/dev/null
-sips -z   64   64 "$LOGO" --out "$ICONSET/icon_32x32@2x.png"   >/dev/null
-sips -z  128  128 "$LOGO" --out "$ICONSET/icon_128x128.png"    >/dev/null
-sips -z  256  256 "$LOGO" --out "$ICONSET/icon_128x128@2x.png" >/dev/null
-sips -z  256  256 "$LOGO" --out "$ICONSET/icon_256x256.png"    >/dev/null
-sips -z  512  512 "$LOGO" --out "$ICONSET/icon_256x256@2x.png" >/dev/null
-sips -z  512  512 "$LOGO" --out "$ICONSET/icon_512x512.png"    >/dev/null
-sips -z 1024 1024 "$LOGO" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
-
-iconutil --convert icns "$ICONSET" --output "$BUILD_DIR/AppIcon.icns"
-rm -rf "$ICONSET"
-echo "    Icon: $BUILD_DIR/AppIcon.icns"
-
-# -------------------------------------------------------------------------
-# Phase 3: Assemble .app bundle
-# -------------------------------------------------------------------------
-echo "==> Assembling $APP_NAME.app"
-mkdir -p "$MACOS" "$RESOURCES"
-
-# Copy Nuitka standalone dist into MacOS/
-cp -a "$NUITKA_DIST"/* "$MACOS/"
-
-# Copy camera binary
 cp "$CAMERA_BIN" "$MACOS/camera_server"
 chmod +x "$MACOS/camera_server"
 
-# Copy resources
 cp "$REPO_ROOT/data/hip8_database.npz" "$RESOURCES/"
 cp "$REPO_ROOT/data/VERSION.json" "$RESOURCES/"
-cp -a "$REPO_ROOT/data/sounds" "$RESOURCES/sounds"
-cp -a "$REPO_ROOT/web/dist" "$RESOURCES/web_dist"
-cp -a "$REPO_ROOT/tests/samples" "$RESOURCES/samples"
+cp -a "$REPO_ROOT/data/sounds"      "$RESOURCES/sounds"
+cp -a "$REPO_ROOT/web/dist"         "$RESOURCES/web_dist"
+cp -a "$REPO_ROOT/tests/samples"    "$RESOURCES/samples"
 mkdir -p "$RESOURCES/marketing"
 cp "$REPO_ROOT/marketing/inapp-title.png" "$RESOURCES/marketing/"
-cp "$BUILD_DIR/AppIcon.icns" "$RESOURCES/AppIcon.icns"
-
-# Write Info.plist
-cat > "$CONTENTS/Info.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key>
-    <string>PushNav</string>
-    <key>CFBundleDisplayName</key>
-    <string>PushNav</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.pushnav.evf</string>
-    <key>CFBundleVersion</key>
-    <string>${APP_VERSION}</string>
-    <key>CFBundleShortVersionString</key>
-    <string>${APP_VERSION}</string>
-    <key>CFBundleExecutable</key>
-    <string>evf</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSCameraUsageDescription</key>
-    <string>PushNav uses the camera to capture telescope finder images for plate solving.</string>
-</dict>
-</plist>
-PLIST
 
 echo "==> $APP_NAME.app assembled at $APP_DIR"
 
