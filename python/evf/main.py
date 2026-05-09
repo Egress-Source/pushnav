@@ -23,9 +23,10 @@ Per impl0.md §8.6.
 import logging
 import os
 import signal
-import socket
 import sys
 import threading
+import urllib.error
+import urllib.request
 
 from evf.engine.engine import Engine
 
@@ -40,11 +41,19 @@ _VP_HEIGHT = 760
 
 
 def _vite_running(port: int = 5000) -> bool:
-    """True if Vite's dev server is reachable on localhost:`port`."""
+    """True if **Vite's** dev server is reachable on localhost:`port`.
+
+    A bare TCP probe isn't enough — macOS reserves port 5000 for the
+    AirPlay Receiver (Control Center), which accepts connections but is
+    obviously not Vite. We probe `/@vite/client` (a JS module Vite
+    always serves) so unrelated listeners don't get mistaken for Vite.
+    """
     try:
-        with socket.create_connection(("127.0.0.1", port), timeout=0.1):
-            return True
-    except OSError:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/@vite/client", timeout=0.3
+        ) as r:
+            return r.status == 200
+    except (urllib.error.URLError, OSError, TimeoutError):
         return False
 
 
