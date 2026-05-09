@@ -111,13 +111,9 @@ uv run python -m nuitka \
     --include-package=erfa \
     --nofollow-import-to=pytest \
     --nofollow-import-to=setuptools \
-    `# Exclude stdlib C extensions that link to Homebrew dylibs — Nuitka 4.x` \
-    `# bug: its macOS dep scanner finds them but the DLL inclusion phase` \
-    `# doesn't bundle them, causing a FATAL in fixupBinaryDLLPathsMacOS.` \
-    `# None of these are needed by this app (tetra3 + pywebview).` \
-    --nofollow-import-to=_blake2 \
-    --nofollow-import-to=_hashlib \
-    --nofollow-import-to=_ssl \
+    `# Exclude stdlib C extensions we genuinely don't need. _ssl / _hashlib /` \
+    `# _blake2 are NOT in this list — pywebview's webview.http imports ssl,` \
+    `# and aiohttp uses hashlib, so excluding them crashes the binary on launch.` \
     --nofollow-import-to=_curses \
     --nofollow-import-to=_curses_panel \
     --nofollow-import-to=_dbm \
