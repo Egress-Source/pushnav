@@ -41,16 +41,24 @@ _VP_HEIGHT = 760
 
 
 def _vite_running(port: int = 5173) -> bool:
-    """True if **Vite's** dev server is reachable on localhost:`port`.
+    """True if **PushNav's** Vite dev server is reachable on localhost:`port`.
 
-    A bare TCP probe isn't enough — common ports get squatted on by other
-    services (e.g. macOS uses 5000 for AirPlay Receiver). We probe
-    `/@vite/client` (a JS module Vite always serves) so unrelated
-    listeners don't get mistaken for Vite.
+    A bare TCP probe isn't enough (the port can be squatted on — macOS uses
+    5000 for AirPlay Receiver, for instance) and a generic Vite marker
+    like `/@vite/client` would also succeed against an *unrelated* Vite
+    running someone else's project. Probe a PushNav-specific public asset
+    instead: `web/public/inapp-title.png` is served at
+    `/static/inapp-title.png` because of `vite.config.ts`'s
+    `base: "/static/"`. A foreign Vite (default base `"/"`) 404s the path
+    so we correctly fall through to the prod URL on :8765.
     """
+    # Use `localhost` (not 127.0.0.1) so the OS resolver tries both ::1 and
+    # 127.0.0.1 — Vite on macOS binds IPv6-only by default, while other
+    # platforms or `--host` bind IPv4. urllib walks the address list until
+    # one succeeds, so a single probe covers both families.
     try:
         with urllib.request.urlopen(
-            f"http://127.0.0.1:{port}/@vite/client", timeout=0.3
+            f"http://localhost:{port}/static/inapp-title.png", timeout=0.3
         ) as r:
             return r.status == 200
     except (urllib.error.URLError, OSError, TimeoutError):
