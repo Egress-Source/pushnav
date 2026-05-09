@@ -98,7 +98,13 @@ async def _security_headers_middleware(request: web.Request, handler) -> web.Str
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault(
         "Content-Security-Policy",
-        "default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data:",
+        # 'self' is required for the React build's external <script> and
+        # <link rel="stylesheet"> tags pointing at /static/*; without it
+        # the browser silently drops them and renders a blank page.
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:",
     )
     return response
 
