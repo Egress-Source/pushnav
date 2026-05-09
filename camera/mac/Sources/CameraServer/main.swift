@@ -149,5 +149,12 @@ func stopFrameTimer() {
 
 // MARK: - Keep process alive
 
+// We need RunLoop.main.run(), not dispatchMain(): AVFoundation posts
+// NSNotifications (device disconnect, session runtime error) on the main
+// thread's runloop. dispatchMain consumes the main thread for libdispatch
+// only — Cocoa notifications would queue forever and never reach our
+// observers, so a yanked USB cable wouldn't surface as a disconnect.
+// The main runloop is integrated with DispatchQueue.main, so dispatch
+// work submitted to .main still runs.
 print("Camera server ready, waiting for connections on port \(defaultPort)")
-dispatchMain()
+RunLoop.main.run()
