@@ -169,21 +169,24 @@ frame capture).
 
 ### Convenience scripts
 
-The helper scripts launch `evf.main --dev`; the Python entry-point itself
+The helper scripts launch `evf.main`; the Python entry-point itself
 probes `localhost:5000` and uses Vite's HMR when it's running, falling
 back to the prebuilt bundle on `:8080` otherwise. So you can leave Vite
 out and everything still works in one terminal:
 
 ```bash
-scripts/run_dev.sh           # macOS — builds Swift camera, then evf.main --dev
+scripts/run_dev.sh           # macOS — builds Swift camera, then evf.main
 scripts/run_dev_linux.sh     # Linux — auto-creates venv with --system-site-packages,
                              #         installs npm deps, builds React if missing,
-                             #         then evf.main --dev (assumes `make -C camera/linux` ran)
+                             #         then evf.main (assumes `make -C camera/linux` ran)
 scripts\run_dev_windows.bat  # Windows — assumes camera\windows\build.bat ran first
 ```
 
 If you want HMR, start `(cd web && npm run dev)` in another terminal
 *before* the script — `evf.main` will pick :5000 automatically.
+
+Set `PUSHNAV_DEBUG=1` in the environment to enable the DebugPanel,
+`/api/dev/*` endpoints, and the WebKit inspector in the pywebview window.
 
 ### `PUSHNAV_DEBUG=1`
 

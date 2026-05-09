@@ -47,4 +47,4 @@ if ! (exec 3<>/dev/tcp/localhost/5000) 2>/dev/null; then
     fi
 fi
 
-uv run python -m evf.main --dev
+uv run python -m evf.main

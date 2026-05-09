@@ -23,4 +23,4 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 scripts/build_camera_mac.sh
-uv run python -m evf.main --dev
+uv run python -m evf.main

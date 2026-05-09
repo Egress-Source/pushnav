@@ -19,4 +19,4 @@ REM along with PushNav. If not, see <https://www.gnu.org/licenses/>.
 REM Launch EVF in development mode on Windows.
 REM Assumes camera server has been built via camera\windows\build.bat.
 cd /d "%~dp0.."
-uv run python -m evf.main --dev
+uv run python -m evf.main
