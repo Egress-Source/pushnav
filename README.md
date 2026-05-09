@@ -48,6 +48,7 @@ Supports **Windows**, **macOS**, and **Linux**. The core app is written in Pytho
 - Near real-time plate solving (~20–140 ms per frame)
 - One time, simple calibration. No named stars, just point at any bright star and sync
 - GOTO navigation guidance from any connected planetarium app (Stellarium, SkySafari, Stellarium Mobile, etc.)
+- Built-in **"What to See"** catalog: 161 deep-sky objects filterable by equipment, light-pollution tolerance and visual reward; visibility recomputed live for the current location and time, and one click promotes the chosen object to the GOTO target
 - Works with **SkySafari**, **Stellarium Mobile**, **INDI**, and **ASCOM** clients over Wi-Fi via the LX200 protocol, with `:D#` slew-status so SkySafari's "Stop / GoTo" button transitions correctly
 - **Mobile web interface**: scan a QR code in the Settings panel to open a live mobile view; no app install required, phone and laptop just need to be on the same Wi-Fi
 - Live activity indicators in the app showing when Stellarium or LX200 clients are talking

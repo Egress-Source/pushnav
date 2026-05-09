@@ -97,14 +97,6 @@ def sounds_dir() -> Path:
     return _REPO_ROOT / "data" / "sounds"
 
 
-def fonts_dir() -> Path:
-    if _BUNDLE_MODE:
-        return _RESOURCES / "fonts"
-    if _LINUX_RELEASE or _WINDOWS_RELEASE:
-        return _RELEASE_ROOT / "data" / "fonts"
-    return _REPO_ROOT / "data" / "fonts"
-
-
 def title_image() -> Path:
     if _BUNDLE_MODE:
         return _RESOURCES / "marketing" / "inapp-title.png"

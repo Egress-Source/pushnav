@@ -194,7 +194,22 @@ See `SPEC_PROTOCOL_LX200.md`.
 
 ## 5.4 UI surface
 
-The main window's Settings panel exposes all three server addresses:
+The header carries a two-tab segmented control:
+
+- **Navigation** — live camera frame, plate-solve overlay, the sync /
+  calibrate / track wizard, camera-control sliders, Connectivity (server
+  addresses + activity dots), and Settings (toggles + advanced solver +
+  Reset to defaults).
+- **What to See** — observer-relative deep-sky catalog. The left island
+  holds equipment / light-pollution / visual-reward filters, an
+  observation-time slider (Now → +6h), and a sortable table of all 161
+  vendored objects above 20° altitude at the chosen time. The right island
+  is the Location panel (manual lat/lon, source = stellarium / manual /
+  none) plus a CatalogDetail card for the selected object; the detail card
+  has a "Set as target" button that POSTs to `/api/goto/set` and switches
+  the tab back to Navigation.
+
+The Connectivity panel exposes all three server addresses:
 
 - `<LAN-IP>:<webserver.port>` — mobile web URL, with QR code
 - `localhost:10001` — Stellarium binary protocol (loopback only)

@@ -13,6 +13,15 @@ server on `localhost:10001`, an **LX200 Classic** ASCII server on `0.0.0.0:4030`
 SkySafari / Stellarium Mobile / INDI / ASCOM clients, and an **aiohttp HTTP + WebSocket**
 server on `0.0.0.0:8080` for the phone-scannable mobile web interface.
 
+The UI has two tabs:
+- **Navigation** — live camera frame, plate-solve overlay, sync wizard, push-to arrow.
+- **What to See** — filterable catalog of 161 deep-sky objects (vendored from
+  the Stargazing-Buddy site) with client-side visibility math. Click a row →
+  detail panel; "Set as target" promotes the object to the current GOTO target
+  and switches back to Navigation. The right column also hosts a manual
+  Location panel; observer location feeds visibility math and falls back to
+  Stellarium's reported location when a Stellarium client is connected.
+
 ## Build & Run
 
 ```bash
@@ -99,8 +108,12 @@ web/                            # React + Vite + TS + Tailwind + shadcn/ui front
     App.tsx
     main.tsx
     components/                 # LiveView, Wizard, Settings, DebugPanel, ...
-    hooks/                      # useEngineState (WebSocket subscription)
-    lib/                        # api client, types
+      catalog/                  # WhatToSee tab — table, filters, detail, time, LocationPanel
+      live-view/                # LiveView, NavOverlay, AxesOverlay, StarOverlay, ...
+    hooks/                      # useEngineState (WebSocket subscription), useView
+    lib/                        # api client, types, astronomy (altAz/rise/set), catalogTypes
+    data/
+      objects.json              # vendored deep-sky catalog (161 entries)
   public/                       # logo, inapp-title, favicons
   dist/                         # build output (gitignored)
 camera/
@@ -110,7 +123,6 @@ camera/
 data/
   hip8_database.npz             # tetra3 star database (~85 MB)
   VERSION.json                  # app + protocol + db version metadata
-  fonts/                        # font files (legacy DPG; kept for tools/scripts)
   sounds/                       # audio feedback WAVs (lock, lost, goto_ack)
   web_dist/                     # React build output (release-only — copied here by build scripts)
 docs/                           # GitHub Pages documentation
@@ -136,6 +148,7 @@ scripts/                        # build and dev scripts
   run_dev_windows.bat           # dev launch (Windows)
   run_mock_camera.sh            # launch mock camera for testing
   pushnav.iss                   # Inno Setup installer script (Windows)
+  sync_catalog.py               # vendor objects.json from ~/Devel/Github/stargazing-buddy-site
   test_stellarium_live.py       # manual Stellarium integration test
 tests/                          # test suite (pytest)
   samples/                      # plate-solve test images (a–d.png + targets/)
@@ -152,10 +165,16 @@ specs/start/                    # design specifications
 - **aiohttp** — HTTP + WebSocket server (serves the React build, /ws state, /frame.mjpg, /api/*)
 - **qrcode[pil]** — QR-code rendering for the LAN URL in the Settings panel
 - **pyerfa** — IAU 2006 precession (J2000 ↔ JNow) for the LX200 protocol server
+- **pyyaml** — used only by `scripts/sync_catalog.py` to parse the buddy-site
+  markdown frontmatter when refreshing `web/src/data/objects.json`
 
 Dev dependencies: **nuitka** (builds), **pytest** (tests).
 Docs dependency group (`uv sync --group docs`): **mkdocs-material** for the
 GitHub Pages site under `docs/`.
+
+The runtime app does **not** depend on `~/Devel/Github/stargazing-buddy-site`.
+That repo is only consulted by `scripts/sync_catalog.py` when the maintainer
+runs the script to refresh the vendored JSON.
 
 ## Important: Loading the tetra3 Database
 
@@ -184,7 +203,13 @@ In application code, use `evf.paths.database_path()` which handles dev vs releas
 - No frame queues — always use most recent frame only
 - All shared state protected by `threading.Lock`
 - Camera subprocess is a separate OS process, communicating over TCP
+- The camera_server binary should `exit(1)` on device disconnect / fatal
+  capture error; the engine's `CameraSubprocessMgr` watches the TCP socket
+  and runs a 5-attempt backoff recovery loop (1, 2, 4, 8, 15 s)
 - Path resolution goes through `evf/paths.py` (handles dev repo, macOS .app bundle, Linux/Windows release)
+- All fonts in the React UI come from the OS — the app ships no web fonts and
+  applies no `font-family` overrides; Tailwind v4 preflight uses its built-in
+  `font-sans` / `font-mono` stacks (system-ui / ui-monospace)
 
 ## Specs
 

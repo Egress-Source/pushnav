@@ -45,7 +45,6 @@ pushnav/
   data/
     hip8_database.npz
     VERSION.json
-    fonts/
     sounds/
 
   marketing/          # logo, in-app title images
@@ -142,8 +141,8 @@ PushNav.app/
     Resources/
       hip8_database.npz
       VERSION.json
-      fonts/
       sounds/
+      web_dist/
       marketing/
     Info.plist
 ```
@@ -231,7 +230,7 @@ Windows release:
 - `database_path()` — star database
 - `camera_binary_path()` — platform-specific camera server binary
 - `sounds_dir()` — audio files
-- `fonts_dir()` — font files
+- `web_dist_dir()` — built React UI (release-only; in dev served by Vite on :5000)
 - `title_image()` — in-app branding
 
 Detection heuristics:

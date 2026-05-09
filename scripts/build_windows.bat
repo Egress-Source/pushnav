@@ -129,7 +129,6 @@ REM Copy data resources
 copy /y "%REPO_ROOT%\data\hip8_database.npz" "%APP_DIR%\data\"
 copy /y "%REPO_ROOT%\data\VERSION.json" "%APP_DIR%\data\"
 xcopy /s /e /q /y "%REPO_ROOT%\data\sounds" "%APP_DIR%\data\sounds\"
-xcopy /s /e /q /y "%REPO_ROOT%\data\fonts" "%APP_DIR%\data\fonts\"
 
 REM Copy marketing assets
 copy /y "%REPO_ROOT%\marketing\inapp-title.png" "%APP_DIR%\marketing\"
