@@ -73,8 +73,6 @@ uv run python -m nuitka \
     --include-package=playsound3 \
     --include-package=tetra3 \
     --include-package=erfa \
-    --include-package=webview \
-    --include-data-dir="$REPO_ROOT/web/dist=web_dist" \
     --nofollow-import-to=pytest \
     --nofollow-import-to=setuptools \
     `# Exclude stdlib C extensions that link to Homebrew dylibs — Nuitka 4.x` \
@@ -139,6 +137,8 @@ chmod +x "$MACOS/camera_server"
 cp "$REPO_ROOT/data/hip8_database.npz" "$RESOURCES/"
 cp "$REPO_ROOT/data/VERSION.json" "$RESOURCES/"
 cp -a "$REPO_ROOT/data/sounds" "$RESOURCES/sounds"
+cp -a "$REPO_ROOT/web/dist" "$RESOURCES/web_dist"
+cp -a "$REPO_ROOT/tests/samples" "$RESOURCES/samples"
 mkdir -p "$RESOURCES/marketing"
 cp "$REPO_ROOT/marketing/inapp-title.png" "$RESOURCES/marketing/"
 cp "$BUILD_DIR/AppIcon.icns" "$RESOURCES/AppIcon.icns"

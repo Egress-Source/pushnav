@@ -78,7 +78,7 @@ jobs:
           restore-keys: macos-uv-
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.13
 
       - name: Install dependencies
         run: uv sync
@@ -96,6 +96,20 @@ jobs:
           swift build -c release
           cp "$(swift build -c release --show-bin-path)/camera_server" camera_server
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build React UI
+        run: |
+          cd web
+          npm ci
+          npm run build
+          test -f dist/index.html
+
       - name: Build Python app with Nuitka
         run: |
           uv run python -m nuitka \
@@ -103,12 +117,12 @@ jobs:
             --static-libpython=no \
             --output-dir=build \
             --output-filename=evf \
-            --include-package=dearpygui \
             --include-package=numpy \
             --include-package=scipy \
             --include-package=PIL \
             --include-package=playsound3 \
             --include-package=tetra3 \
+            --include-package=erfa \
             --nofollow-import-to=pytest \
             --nofollow-import-to=setuptools \
             --nofollow-import-to=_blake2 \
@@ -154,7 +168,8 @@ jobs:
           cp data/hip8_database.npz "$RESOURCES/"
           cp data/VERSION.json "$RESOURCES/"
           cp -a data/sounds "$RESOURCES/sounds"
-          cp -a data/fonts "$RESOURCES/fonts"
+          cp -a web/dist "$RESOURCES/web_dist"
+          cp -a tests/samples "$RESOURCES/samples"
           mkdir -p "$RESOURCES/marketing"
           cp marketing/inapp-title.png "$RESOURCES/marketing/"
           cp build/AppIcon.icns "$RESOURCES/AppIcon.icns"
@@ -252,7 +267,10 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc libjpeg-dev libfuse2 patchelf
+          # libjpeg-dev/libfuse2/patchelf for camera_server + AppImage tooling.
+          # python3-gi + gir1.2-webkit2-4.1 for pywebview's GTK backend.
+          sudo apt-get install -y gcc libjpeg-dev libfuse2 patchelf \
+              python3-gi gir1.2-webkit2-4.1
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -265,10 +283,29 @@ jobs:
           restore-keys: linux-uv-
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.13
 
       - name: Install dependencies
-        run: uv sync
+        # pywebview on Linux uses PyGObject (`gi`), which ships only as a distro
+        # package and is not on PyPI. The venv must inherit system site-packages
+        # so it can import `gi`.
+        run: |
+          uv venv --system-site-packages
+          uv sync
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build React UI
+        run: |
+          cd web
+          npm ci
+          npm run build
+          test -f dist/index.html
 
       - name: Build C camera server
         run: make -C camera/linux
@@ -279,12 +316,14 @@ jobs:
             --standalone \
             --output-dir=build \
             --output-filename=evf \
-            --include-package=dearpygui \
             --include-package=numpy \
             --include-package=scipy \
             --include-package=PIL \
             --include-package=playsound3 \
             --include-package=tetra3 \
+            --include-package=erfa \
+            --include-data-dir=web/dist=data/web_dist \
+            --include-data-dir=tests/samples=data/samples \
             --nofollow-import-to=pytest \
             --nofollow-import-to=setuptools \
             --nofollow-import-to=linuxpy \
@@ -302,7 +341,6 @@ jobs:
           cp data/hip8_database.npz "$APP/data/"
           cp data/VERSION.json "$APP/data/"
           cp -a data/sounds "$APP/data/sounds"
-          cp -a data/fonts "$APP/data/fonts"
           cp marketing/inapp-title.png "$APP/marketing/"
 
       - name: Create tar.gz
@@ -411,7 +449,7 @@ jobs:
           restore-keys: windows-uv-
 
       - name: Set up Python
-        run: uv python install 3.12
+        run: uv python install 3.13
 
       - name: Install dependencies
         run: uv sync
@@ -425,20 +463,41 @@ jobs:
           cd camera\windows
           call build.bat
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: web/package-lock.json
+
+      - name: Build React UI
+        shell: pwsh
+        run: |
+          cd web
+          npm ci
+          npm run build
+          if (-not (Test-Path dist/index.html)) { throw "React build did not produce web/dist/index.html" }
+
       - name: Build Python app with Nuitka
         run: |
           uv run python -m nuitka `
             --standalone `
-            --windows-disable-console `
+            --windows-console-mode=disable `
             --windows-icon-from-ico=marketing/logo.ico `
             --output-dir=build `
             --output-filename=evf.exe `
-            --include-package=dearpygui `
             --include-package=numpy `
             --include-package=scipy `
             --include-package=PIL `
             --include-package=playsound3 `
             --include-package=tetra3 `
+            --include-package=erfa `
+            --disable-plugin=pywebview `
+            --include-module=webview.platforms.winforms `
+            --include-module=webview.platforms.edgechromium `
+            --include-module=webview.platforms.win32 `
+            --include-data-dir=web/dist=data/web_dist `
+            --include-data-dir=tests/samples=data/samples `
             --nofollow-import-to=pytest `
             --nofollow-import-to=setuptools `
             --assume-yes-for-downloads `
@@ -454,7 +513,6 @@ jobs:
           Copy-Item "data\hip8_database.npz" "$app\data\"
           Copy-Item "data\VERSION.json" "$app\data\"
           Copy-Item -Recurse "data\sounds" "$app\data\sounds"
-          Copy-Item -Recurse "data\fonts" "$app\data\fonts"
           Copy-Item "marketing\inapp-title.png" "$app\marketing\"
           Copy-Item "marketing\logo.ico" "$app\marketing\"
 
@@ -470,8 +528,7 @@ jobs:
       - name: Build installer
         shell: cmd
         run: |
-          set "APP_VERSION=${{ steps.version.outputs.version }}"
-          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" scripts\pushnav.iss
+          "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAPP_VERSION="${{ steps.version.outputs.version }}" scripts\pushnav.iss
 
       - name: Upload zip artifact
         uses: actions/upload-artifact@v4

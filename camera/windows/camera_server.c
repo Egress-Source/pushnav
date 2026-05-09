@@ -123,6 +123,7 @@ DECLARE_INTERFACE_(ISampleGrabber, IUnknown) {
 static IGraphBuilder         *pGraph       = NULL;
 static ICaptureGraphBuilder2 *pCapture     = NULL;
 static IMediaControl         *pControl     = NULL;
+static IMediaEventEx         *pMediaEvent  = NULL;
 static IBaseFilter           *pCamFilter   = NULL;
 static IBaseFilter           *pGrabFilter  = NULL;
 static IBaseFilter           *pNullFilter  = NULL;
@@ -295,6 +296,58 @@ static HRESULT find_device_with_retry(IBaseFilter **ppFilter)
 }
 
 /* ------------------------------------------------------------------ */
+/* Media event monitor                                                 */
+/*                                                                     */
+/* DirectShow signals device removal via the filter graph's event      */
+/* queue. Without this thread a yanked USB cable is invisible — the    */
+/* graph keeps "running" but never delivers another sample, the engine */
+/* sees no TCP drop, and the UI sits on a frozen frame. We exit(1) on  */
+/* EC_DEVICE_LOST or EC_ERRORABORT so the engine's CameraSubprocessMgr */
+/* respawns us via its existing recovery loop.                         */
+/* ------------------------------------------------------------------ */
+
+static DWORD WINAPI media_event_thread(LPVOID param)
+{
+    (void)param;
+    while (1) {
+        long ev_code = 0;
+        LONG_PTR p1 = 0, p2 = 0;
+        HRESULT hr = IMediaEventEx_GetEvent(pMediaEvent, &ev_code, &p1, &p2,
+                                             INFINITE);
+        if (FAILED(hr)) {
+            fprintf(stderr,
+                    "ERROR: IMediaEventEx::GetEvent failed (hr=0x%08lx), exiting\n",
+                    hr);
+            fflush(stderr);
+            exit(1);
+        }
+
+        if (ev_code == EC_DEVICE_LOST) {
+            /* Param2 is 0 when the device is lost, 1 when it's regained.
+             * We only ever react to the loss; the engine spawns a fresh
+             * server when the camera reappears. */
+            if (p2 == 0) {
+                fprintf(stderr,
+                        "ERROR: Camera device disconnected (EC_DEVICE_LOST), exiting\n");
+                fflush(stderr);
+                IMediaEventEx_FreeEventParams(pMediaEvent, ev_code, p1, p2);
+                exit(1);
+            }
+        } else if (ev_code == EC_ERRORABORT) {
+            fprintf(stderr,
+                    "ERROR: Capture graph aborted (EC_ERRORABORT, hr=0x%08lx), exiting\n",
+                    (long)p1);
+            fflush(stderr);
+            IMediaEventEx_FreeEventParams(pMediaEvent, ev_code, p1, p2);
+            exit(1);
+        }
+
+        IMediaEventEx_FreeEventParams(pMediaEvent, ev_code, p1, p2);
+    }
+    return 0;
+}
+
+/* ------------------------------------------------------------------ */
 /* Capture graph setup                                                 */
 /* ------------------------------------------------------------------ */
 
@@ -454,6 +507,24 @@ static int open_camera(void)
     if (FAILED(hr)) {
         fprintf(stderr, "Failed to start capture (hr=0x%08lx)\n", hr);
         return -1;
+    }
+
+    /* Subscribe to filter graph events so we can detect device disconnect.
+     * QI from the same IGraphBuilder we already have. */
+    hr = IGraphBuilder_QueryInterface(pGraph, &IID_IMediaEventEx,
+                                      (void **)&pMediaEvent);
+    if (FAILED(hr) || !pMediaEvent) {
+        fprintf(stderr,
+                "Warning: IMediaEventEx not available — cannot detect device disconnect\n");
+    } else {
+        HANDLE th = CreateThread(NULL, 0, media_event_thread, NULL, 0, NULL);
+        if (th == NULL) {
+            fprintf(stderr,
+                    "Warning: failed to start media event thread (err=%lu)\n",
+                    (unsigned long)GetLastError());
+        } else {
+            CloseHandle(th);  /* fire and forget; thread runs until exit() */
+        }
     }
 
     fprintf(stderr, "Capture graph running\n");
@@ -659,6 +730,15 @@ static int capture_frame(unsigned char **out_data, long *out_len)
 
     /* First call to get buffer size */
     hr = pGrabber->lpVtbl->GetCurrentBuffer(pGrabber, &buf_size, NULL);
+    /* Defense in depth: if the graph has stopped under us in steady state,
+     * EC_DEVICE_LOST may not have fired (some drivers are lax). Treat a
+     * stopped-graph error as a fatal disconnect. */
+    if (hr == VFW_E_NOT_RUNNING) {
+        fprintf(stderr,
+                "ERROR: Capture graph stopped (VFW_E_NOT_RUNNING), exiting\n");
+        fflush(stderr);
+        exit(1);
+    }
     if (FAILED(hr) || buf_size <= 0)
         return -1;
 

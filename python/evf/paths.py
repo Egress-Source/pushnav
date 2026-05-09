@@ -164,7 +164,15 @@ def web_dist_dir() -> Path:
 
 
 def samples_dir() -> Path | None:
-    """Path to test sample images. Returns None in release modes (not shipped)."""
-    if _BUNDLE_MODE or _LINUX_RELEASE or _WINDOWS_RELEASE:
-        return None
-    return _REPO_ROOT / "tests" / "samples"
+    """Path to test sample images.
+
+    Shipped in all builds so the DebugPanel sample-injection buttons work
+    when PUSHNAV_DEBUG=1. Returns None only if the directory is missing.
+    """
+    if _BUNDLE_MODE:
+        p = _RESOURCES / "samples"
+    elif _LINUX_RELEASE or _WINDOWS_RELEASE:
+        p = _RELEASE_ROOT / "data" / "samples"
+    else:
+        p = _REPO_ROOT / "tests" / "samples"
+    return p if p.exists() else None

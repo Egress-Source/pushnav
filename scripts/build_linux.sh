@@ -71,8 +71,8 @@ uv run python -m nuitka \
     --include-package=playsound3 \
     --include-package=tetra3 \
     --include-package=erfa \
-    --include-package=webview \
     --include-data-dir="$REPO_ROOT/web/dist=data/web_dist" \
+    --include-data-dir="$REPO_ROOT/tests/samples=data/samples" \
     --nofollow-import-to=pytest \
     --nofollow-import-to=setuptools \
     --nofollow-import-to=linuxpy \
