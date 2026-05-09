@@ -64,7 +64,7 @@ export function LocationPanel({ state }: Props) {
           placeholder="Lat"
           value={latInput}
           onChange={(e) => setLatInput(e.target.value)}
-          className="h-7 text-xs"
+          className="h-7 text-xs text-right"
         />
         <Input
           type="number"
@@ -72,7 +72,7 @@ export function LocationPanel({ state }: Props) {
           placeholder="Lon"
           value={lonInput}
           onChange={(e) => setLonInput(e.target.value)}
-          className="h-7 text-xs"
+          className="h-7 text-xs text-right"
         />
       </div>
       <div className="flex gap-2">
