@@ -13,8 +13,8 @@ export function LocationPanel({ state }: Props) {
   const activeLat = state.location?.latitude ?? null;
   const activeLon = state.location?.longitude ?? null;
   const source = state.location?.source ?? null;
-  const activeLatStr = activeLat !== null ? String(activeLat) : "";
-  const activeLonStr = activeLon !== null ? String(activeLon) : "";
+  const activeLatStr = activeLat !== null ? activeLat.toFixed(2) : "";
+  const activeLonStr = activeLon !== null ? activeLon.toFixed(2) : "";
 
   const [latInput, setLatInput] = useState(activeLatStr);
   const [lonInput, setLonInput] = useState(activeLonStr);
