@@ -130,6 +130,12 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* App is dark-only; tell WebKit so native UI (scrollbars, form controls,
+     date pickers) renders in dark mode instead of falling back to bright
+     Aqua light-mode rendering on macOS WKWebView. */
+  :root {
+    color-scheme: dark;
+  }
 }
 
 /* PushNav astronomy palette: shadcn dark theme tinted toward red.
