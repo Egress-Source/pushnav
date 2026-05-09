@@ -189,9 +189,6 @@ class Engine:
     def set_audio_enabled(self, enabled: bool) -> None:
         self.audio_enabled = enabled
 
-    def set_hidpi(self, enabled: bool) -> None:
-        self._config.hidpi = enabled
-
     @property
     def location(self) -> dict:
         """Resolve the active observer location.

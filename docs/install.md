@@ -64,6 +64,35 @@ You only need to do this once.
 
 ## Linux
 
+### Before you start: system packages
+
+PushNav's window is drawn by your system's GTK + WebKit libraries, and the
+AppImage format itself needs FUSE. Most desktop Linux installs already have
+these, but on a fresh or minimal system install them first:
+
+**Ubuntu / Debian / Mint / Pop!_OS:**
+
+```bash
+sudo apt install libfuse2 \
+                 python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 \
+                 gstreamer1.0-tools
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install fuse python3-gobject gtk3 webkit2gtk4.1 gstreamer1
+```
+
+**Arch / Manjaro:**
+
+```bash
+sudo pacman -S fuse2 python-gobject gtk3 webkit2gtk-4.1 gst-plugins-base
+```
+
+If these are missing, PushNav fails at startup with messages like
+`No module named 'gi'` or `cannot open shared library libwebkit2gtk-4.1.so`.
+
 ### Install
 
 1. Download the `.AppImage` file
@@ -72,8 +101,6 @@ You only need to do this once.
    chmod +x PushNav-linux-*.AppImage
    ./PushNav-linux-*.AppImage
    ```
-
-The AppImage is self-contained. Everything PushNav needs is bundled inside.
 
 ### Camera permission
 

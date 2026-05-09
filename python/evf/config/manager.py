@@ -34,7 +34,6 @@ DEFAULT_CONFIG = {
     "calibration": {"finder_rotation": 0.0, "sync_d_body": None},
     "logging": {"verbose": False},
     "audio": {"enabled": True},
-    "display": {"hidpi": False, "hidpi_last_scale": 0},
     "webserver": {"port": 8080},
     "location": {"latitude": None, "longitude": None},
 }
@@ -179,22 +178,6 @@ class ConfigManager:
     @audio_enabled.setter
     def audio_enabled(self, value: bool) -> None:
         self.set("audio", "enabled", value)
-
-    @property
-    def hidpi(self) -> bool:
-        return self.get("display", "hidpi")
-
-    @hidpi.setter
-    def hidpi(self, value: bool) -> None:
-        self.set("display", "hidpi", value)
-
-    @property
-    def hidpi_last_scale(self) -> int:
-        return self.get("display", "hidpi_last_scale") or 0
-
-    @hidpi_last_scale.setter
-    def hidpi_last_scale(self, value: int) -> None:
-        self.set("display", "hidpi_last_scale", value)
 
     @property
     def verbose(self) -> bool:

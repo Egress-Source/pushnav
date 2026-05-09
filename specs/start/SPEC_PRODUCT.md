@@ -306,10 +306,6 @@ Stored as JSON. Platform-specific paths:
   "audio": {
     "enabled": true
   },
-  "display": {
-    "hidpi": false,
-    "hidpi_last_scale": 0
-  },
   "webserver": {
     "port": 8080
   }
@@ -321,9 +317,8 @@ Notes:
 - `camera.exposure` / `camera.gain` are `null` on first run. The engine
   initializes them to the midpoint of the reported camera range on the
   first camera HELLO and persists the values from there on.
-- `display.hidpi_last_scale` caches the last detected display scale factor
-  (Windows primary monitor, in percent — 100, 125, 150, …) so the engine
-  can auto-toggle 4K mode when the user moves to a different-DPI display.
+- HiDPI scaling is handled by each platform's webview (WKWebView /
+  WebKit2GTK / WebView2) against the OS DPI settings; no app-side toggle.
 - `webserver.port` is validated to 1024–65535 on write.
 - Config is versioned for future upgrades. Missing keys are merged from
   defaults on load.
@@ -379,7 +374,6 @@ Verbose mode logs:
 - Telescope-control address block showing LX200 (`<LAN-IP>:4030`) and
   Stellarium (`localhost:10001`) addresses, each with a red-dot activity
   indicator that lights while a client is talking to the server
-- HiDPI / 4K monitor compatibility toggle
 - Audio enable/disable toggle
 - "Use Previous Calibration" button (when saved calibration exists)
 - Debug section (dev mode only) for frame capture and sample injection

@@ -21,7 +21,6 @@ export const api = {
     post("/api/goto/set", { ra_deg, dec_deg }),
   setSettings: (s: {
     audio_enabled?: boolean;
-    hidpi?: boolean;
     location?: { latitude: number; longitude: number } | null;
   }) => post("/api/settings", s),
   setAdvanced: (s: { min_matches?: number; max_prob?: number }) =>

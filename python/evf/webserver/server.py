@@ -43,6 +43,23 @@ from evf.paths import sounds_dir, web_dist_dir
 
 logger = logging.getLogger(__name__)
 
+
+class _SuppressFrameAccessLogs(logging.Filter):
+    """Drop aiohttp.access lines for /frame.jpg and /frame.mjpg.
+
+    The polling-fallback live view fetches /frame.jpg at 10 Hz, which would
+    otherwise drown the log. Other endpoints (API, /ws, /static/*) keep
+    logging normally so debugging still works.
+    """
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        msg = record.getMessage()
+        return "/frame.jpg" not in msg and "/frame.mjpg" not in msg
+
+
+logging.getLogger("aiohttp.access").addFilter(_SuppressFrameAccessLogs())
+
+
 _MAX_WS_CLIENTS = 10  # cap concurrent WebSocket connections
 _MAX_MJPEG_CLIENTS = 4
 _MJPEG_BOUNDARY = b"frame"
@@ -65,7 +82,6 @@ class EngineActions(Protocol):
     def clear_goto_target(self) -> None: ...
     def set_goto_target(self, ra_deg: float, dec_deg: float) -> None: ...
     def set_audio_enabled(self, enabled: bool) -> None: ...
-    def set_hidpi(self, enabled: bool) -> None: ...
     def inject_sample(self, name: str | None) -> None: ...
     def inject_target(self, ra_deg: float, dec_deg: float) -> None: ...
     def capture_frame(self): ...  # returns Path | None
@@ -133,6 +149,8 @@ class WebServer:
     HTTP GET /static/*  — React build assets (when web_dist_dir() exists)
     HTTP GET /sounds/*  — serves WAV audio files
     HTTP GET /frame.mjpg — multipart MJPEG of the latest camera frame
+    HTTP GET /frame.jpg  — single-shot latest JPEG (poll for WebViews
+                            that don't render multipart, e.g. WebKit2GTK)
     WebSocket /ws       — pushes JSON state at ~10 Hz to all clients
     HTTP POST /api/*    — wizard, controls, settings, dev actions
     """
@@ -227,6 +245,7 @@ class WebServer:
         app.router.add_get("/", self._handle_index)
         app.router.add_get("/ws", self._handle_ws)
         app.router.add_get("/frame.mjpg", self._handle_mjpeg)
+        app.router.add_get("/frame.jpg", self._handle_frame_jpg)
         app.router.add_post("/api/wizard/advance", self._api_wizard_advance)
         app.router.add_post("/api/sync/retry", self._api_sync_retry)
         app.router.add_post("/api/sync/select", self._api_sync_select)
@@ -280,6 +299,24 @@ class WebServer:
         )
 
     # -- MJPEG frame stream ---------------------------------------------------
+
+    async def _handle_frame_jpg(self, request: web.Request) -> web.Response:
+        """Single-shot latest-JPEG endpoint.
+
+        Used by clients (notably WebKit2GTK in pywebview on Linux) that don't
+        render multipart/x-mixed-replace inside an <img>. Callers poll this
+        with a cache-busting query param to drive an animated live view.
+        """
+        if self._frame_buffer is None:
+            return web.Response(status=503, text="No frame buffer")
+        jpeg, _ts, _fid = self._frame_buffer.get()
+        if jpeg is None:
+            return web.Response(status=503, text="No frame yet")
+        return web.Response(
+            body=jpeg,
+            content_type="image/jpeg",
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
 
     async def _handle_mjpeg(self, request: web.Request) -> web.StreamResponse:
         """Multipart MJPEG stream of the latest camera frame.
@@ -417,13 +454,6 @@ class WebServer:
             resp = await self._handle_api(
                 request,
                 lambda: self._actions.set_audio_enabled(bool(body["audio_enabled"])),
-            )
-            if resp.status >= 400:
-                return resp
-        if "hidpi" in body:
-            resp = await self._handle_api(
-                request,
-                lambda: self._actions.set_hidpi(bool(body["hidpi"])),
             )
             if resp.status >= 400:
                 return resp

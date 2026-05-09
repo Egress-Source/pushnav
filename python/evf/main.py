@@ -21,7 +21,9 @@ Per impl0.md §8.6.
 """
 
 import logging
+import os
 import signal
+import socket
 import sys
 import threading
 
@@ -31,65 +33,30 @@ logger = logging.getLogger(__name__)
 
 # Window dimensions sized to the React UI's `max-w-5xl` (1024px) layout
 # plus minimal padding. Resizable, so the user can adjust on bigger screens.
+# Each platform's webview (WKWebView / WebKit2GTK / WebView2) handles HiDPI
+# scaling natively against its OS's DPI/scale settings — no app-side multiplier.
 _VP_WIDTH = 1060
 _VP_HEIGHT = 760
-_CHROME_BUFFER = 0  # legacy DPG nudge — pywebview's content area already
-                    # excludes window chrome, no extra padding needed
 
 
-def _windows_primary_monitor_scale() -> int:
-    """Return primary monitor's scale percentage (100, 125, 150, ...).
-
-    Uses GetScaleFactorForMonitor, which returns the user-configured scale
-    even for DPI-unaware processes (unlike GetDpiForMonitor, which
-    virtualizes to 96 in that mode). Returns 100 on non-Windows or on
-    failure.
-    """
-    if sys.platform != "win32":
-        return 100
+def _vite_running(port: int = 5000) -> bool:
+    """True if Vite's dev server is reachable on localhost:`port`."""
     try:
-        import ctypes
-        from ctypes import wintypes
-
-        MONITOR_DEFAULTTOPRIMARY = 1
-        hmon = ctypes.windll.user32.MonitorFromPoint(
-            wintypes.POINT(0, 0), MONITOR_DEFAULTTOPRIMARY
-        )
-        scale = ctypes.c_int(100)
-        if ctypes.windll.shcore.GetScaleFactorForMonitor(
-            hmon, ctypes.byref(scale)
-        ) != 0:
-            return 100
-        return int(scale.value)
-    except Exception:
-        return 100
+        with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+            return True
+    except OSError:
+        return False
 
 
 def main() -> None:
-    dev_mode = "--dev" in sys.argv
+    # PUSHNAV_DEBUG=1 is equivalent to --dev (engine dev features +
+    # WebKit inspector) on every platform.
+    dev_mode = "--dev" in sys.argv or os.environ.get("PUSHNAV_DEBUG") == "1"
     no_window = "--no-window" in sys.argv
     # --react is now the default; accept the flag as a no-op for back-compat
     _ = "--react" in sys.argv
 
     engine = Engine(dev_mode=dev_mode)
-
-    # Auto-toggle 4K mode on Windows whenever the detected display scale
-    # changes (different monitor, docking, Windows scaling changed). Within a
-    # single scale, the user's checkbox choice is preserved.
-    if sys.platform == "win32":
-        current_scale = _windows_primary_monitor_scale()
-        if current_scale != engine.config.hidpi_last_scale:
-            should_hidpi = current_scale >= 150
-            if engine.config.hidpi != should_hidpi:
-                engine.config.hidpi = should_hidpi
-                logger.info(
-                    "Auto-%s 4K mode for %d%% display scale",
-                    "enabled" if should_hidpi else "disabled",
-                    current_scale,
-                )
-            engine.config.hidpi_last_scale = current_scale
-
-    vp_scale = 2 if engine.config.hidpi else 1
 
     # Engine + servers come up either way
     engine.startup_logging()
@@ -113,17 +80,26 @@ def main() -> None:
     # Default: open pywebview window pointing at the React UI
     import webview
 
-    target_url = "http://localhost:5000" if dev_mode else "http://localhost:8080"
+    # Use Vite's HMR server when it's actually running; otherwise serve the
+    # prebuilt bundle through the in-process aiohttp server. This decouples
+    # URL choice from dev_mode, so PUSHNAV_DEBUG=1 (or --dev) without Vite
+    # still loads a working UI from :8080.
+    target_url = (
+        "http://localhost:5000" if _vite_running() else "http://localhost:8080"
+    )
     title = f"PushNav {engine.app_version}"
 
     webview.create_window(
         title,
         target_url,
-        width=int(_VP_WIDTH * vp_scale) + _CHROME_BUFFER,
-        height=int(_VP_HEIGHT * vp_scale),
+        width=_VP_WIDTH,
+        height=_VP_HEIGHT,
         resizable=True,
     )
-    webview.start()  # blocks until window closed
+    # private_mode=False keeps HTML5 localStorage enabled in WebKit2GTK on
+    # Linux (pywebview's GTK backend disables localStorage in private mode).
+    # macOS WKWebView keeps localStorage alive regardless.
+    webview.start(debug=dev_mode, private_mode=False)
 
     engine.shutdown()
 

@@ -127,17 +127,17 @@ async def test_actions_none_returns_503(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_settings_returns_500_when_first_setter_raises(server_and_actions):
-    """When set_audio_enabled raises, the response is 500 and set_hidpi is NOT called."""
+    """When set_audio_enabled raises, the response is 500 and later setters are NOT called."""
     ws, actions = server_and_actions
     actions.set_audio_enabled.side_effect = RuntimeError("boom")
     async with ClientSession() as s:
         async with s.post(
             f"http://127.0.0.1:{ws._port}/api/settings",
-            json={"audio_enabled": False, "hidpi": True},
+            json={"audio_enabled": False, "min_matches": 10},
         ) as resp:
             assert resp.status == 500
     actions.set_audio_enabled.assert_called_once_with(False)
-    actions.set_hidpi.assert_not_called()
+    actions.set_min_matches.assert_not_called()
 
 
 @pytest.mark.asyncio

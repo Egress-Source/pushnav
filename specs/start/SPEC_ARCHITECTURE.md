@@ -638,7 +638,6 @@ Default configuration:
   "calibration": {"finder_rotation": 0.0, "sync_d_body": null},
   "logging": {"verbose": false},
   "audio": {"enabled": true},
-  "display": {"hidpi": false, "hidpi_last_scale": 0},
   "webserver": {"port": 8080}
 }
 ```
@@ -648,10 +647,9 @@ Notes on specific fields:
 - `camera.exposure` / `camera.gain` default to `null`. On the first camera
   HELLO, the engine seeds them to the midpoint of the reported control range
   and persists the values from there on.
-- `display.hidpi_last_scale` caches the most recent Windows primary-monitor
-  scale factor (percent — 100, 125, 150, …). When that value changes between
-  launches the engine auto-toggles `hidpi` to match, so a laptop moved between
-  a retina display and a standard monitor doesn't need manual retoggling.
+- HiDPI scaling is handled natively by each platform's webview (WKWebView on
+  macOS, WebKit2GTK on Linux, WebView2 on Windows) against the OS DPI/scale
+  settings — no app-side multiplier or toggle.
 - `webserver.port` is validated to the 1024–65535 range on write.
 
 ---
