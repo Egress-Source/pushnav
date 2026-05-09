@@ -10,27 +10,21 @@ interface Props {
 }
 
 export function LocationPanel({ state }: Props) {
-  const manualLat =
-    state.location?.source === "manual" ? state.location.latitude : null;
-  const manualLon =
-    state.location?.source === "manual" ? state.location.longitude : null;
-  const [latInput, setLatInput] = useState(
-    manualLat !== null ? String(manualLat) : "",
-  );
-  const [lonInput, setLonInput] = useState(
-    manualLon !== null ? String(manualLon) : "",
-  );
+  const activeLat = state.location?.latitude ?? null;
+  const activeLon = state.location?.longitude ?? null;
+  const source = state.location?.source ?? null;
+  const activeLatStr = activeLat !== null ? String(activeLat) : "";
+  const activeLonStr = activeLon !== null ? String(activeLon) : "";
 
+  const [latInput, setLatInput] = useState(activeLatStr);
+  const [lonInput, setLonInput] = useState(activeLonStr);
+
+  // Sync inputs whenever the engine's active location changes — covers
+  // Stellarium connect/disconnect and manual save/clear.
   useEffect(() => {
-    if (state.location?.source === "manual") {
-      setLatInput(String(state.location.latitude));
-      setLonInput(String(state.location.longitude));
-    }
-  }, [
-    state.location?.source,
-    state.location?.latitude,
-    state.location?.longitude,
-  ]);
+    setLatInput(activeLatStr);
+    setLonInput(activeLonStr);
+  }, [activeLatStr, activeLonStr]);
 
   const lat = parseFloat(latInput);
   const lon = parseFloat(lonInput);
@@ -41,10 +35,8 @@ export function LocationPanel({ state }: Props) {
     lat <= 90 &&
     lon >= -180 &&
     lon <= 180;
-  const dirty =
-    String(manualLat ?? "") !== latInput ||
-    String(manualLon ?? "") !== lonInput;
-  const hasManual = manualLat !== null && manualLon !== null;
+  const dirty = latInput !== activeLatStr || lonInput !== activeLonStr;
+  const hasManual = source === "manual";
 
   const save = async () => {
     if (!valid) return;
