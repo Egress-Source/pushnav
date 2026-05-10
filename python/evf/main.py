@@ -20,14 +20,17 @@
 Per impl0.md §8.6.
 """
 
+import json
 import logging
 import os
 import signal
+import socket
 import sys
 import threading
 import urllib.error
 import urllib.request
 
+from evf.config.manager import ConfigManager
 from evf.engine.engine import Engine
 
 logger = logging.getLogger(__name__)
@@ -65,6 +68,50 @@ def _vite_running(port: int = 5173) -> bool:
         return False
 
 
+def _check_single_instance(port: int) -> None:
+    """Exit cleanly if another PushNav (or anything) is already on `port`.
+
+    Runs before any engine threads, port binds, or pywebview windows
+    open. Distinguishes "another PushNav" from "another app on the
+    port" by hitting our /api/version identifier endpoint, so the
+    error message can tell the user what to do.
+    """
+    # Fast TCP probe first — if the port is free, the slow HTTP probe
+    # would just time out. Use 127.0.0.1 explicitly: webserver binds
+    # 0.0.0.0 so this always reaches our listener if any.
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.3):
+            pass  # something is bound
+    except OSError:
+        return  # port free, fine to start
+
+    # Port is busy. Identify the occupant.
+    is_pushnav = False
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/api/version", timeout=0.5
+        ) as r:
+            if r.status == 200:
+                payload = json.loads(r.read(512))
+                is_pushnav = payload.get("app") == "pushnav"
+    except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError):
+        pass
+
+    if is_pushnav:
+        msg = (
+            f"PushNav is already running on port {port}.\n"
+            f"Close the existing window before launching another instance."
+        )
+    else:
+        msg = (
+            f"Port {port} is in use by another application.\n"
+            f"Close it, or change webserver.port in your PushNav config "
+            f"(see logs for the config file location)."
+        )
+    print(msg, file=sys.stderr)
+    sys.exit(1)
+
+
 def main() -> None:
     # PUSHNAV_DEBUG=1 is equivalent to --dev (engine dev features +
     # WebKit inspector) on every platform.
@@ -73,7 +120,13 @@ def main() -> None:
     # --react is now the default; accept the flag as a no-op for back-compat
     _ = "--react" in sys.argv
 
-    engine = Engine(dev_mode=dev_mode)
+    # Single-instance guard. Reads config first (we need web_port for the
+    # probe) and reuses the same ConfigManager for the engine, so it isn't
+    # loaded twice from disk.
+    config = ConfigManager()
+    _check_single_instance(config.web_port)
+
+    engine = Engine(dev_mode=dev_mode, config=config)
 
     # Engine + servers come up either way
     engine.startup_logging()

@@ -39,7 +39,7 @@ from evf.engine.navigation import compute_navigation, edge_arrow_position
 from evf.engine.pointing import PointingState
 from evf.engine.state import StateMachine
 from evf.network import local_ip
-from evf.paths import sounds_dir, web_dist_dir
+from evf.paths import sounds_dir, version_json, web_dist_dir
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +225,7 @@ class WebServer:
 
         app = web.Application(middlewares=[_security_headers_middleware])
         app.router.add_get("/", self._handle_index)
+        app.router.add_get("/api/version", self._handle_version)
         app.router.add_get("/ws", self._handle_ws)
         app.router.add_get("/frame.mjpg", self._handle_mjpeg)
         app.router.add_post("/api/wizard/advance", self._api_wizard_advance)
@@ -278,6 +279,25 @@ class WebServer:
                 "'npm run dev' (Vite on :5173) for dev."
             ),
         )
+
+    async def _handle_version(self, request: web.Request) -> web.Response:
+        """Identify-as-PushNav endpoint.
+
+        Used by the single-instance check in main.py: a second launch
+        probes this URL and exits cleanly if the response carries our
+        ``app == "pushnav"`` marker. Independently useful for clients
+        and scripts that want app/protocol version info.
+        """
+        try:
+            with open(version_json()) as f:
+                data = json.load(f)
+        except (OSError, json.JSONDecodeError):
+            data = {}
+        return web.json_response({
+            "app": "pushnav",
+            "version": data.get("app_version"),
+            "protocol_version": data.get("protocol_version"),
+        })
 
     # -- MJPEG frame stream ---------------------------------------------------
 
