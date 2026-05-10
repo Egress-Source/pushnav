@@ -66,32 +66,32 @@ You only need to do this once.
 
 ### Before you start: system packages
 
-PushNav's window is drawn by your system's GTK + WebKit libraries, and the
-AppImage format itself needs FUSE. Most desktop Linux installs already have
-these, but on a fresh or minimal system install them first:
+PushNav bundles its own window toolkit (Qt) and audio libraries, but the
+AppImage format itself needs FUSE, and GStreamer drives the lock/lost
+audio alerts. Most desktop Linux installs already have these, but on a
+fresh or minimal system install them first:
 
 **Ubuntu / Debian / Mint / Pop!_OS:**
 
 ```bash
-sudo apt install libfuse2 \
-                 python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 \
-                 gstreamer1.0-tools
+sudo apt install libfuse2 gstreamer1.0-tools
 ```
 
 **Fedora:**
 
 ```bash
-sudo dnf install fuse python3-gobject gtk3 webkit2gtk4.1 gstreamer1
+sudo dnf install fuse gstreamer1
 ```
 
 **Arch / Manjaro:**
 
 ```bash
-sudo pacman -S fuse2 python-gobject gtk3 webkit2gtk-4.1 gst-plugins-base
+sudo pacman -S fuse2 gst-plugins-base
 ```
 
-If these are missing, PushNav fails at startup with messages like
-`No module named 'gi'` or `cannot open shared library libwebkit2gtk-4.1.so`.
+If FUSE is missing, the AppImage refuses to start with a message about
+mounting; if GStreamer is missing, you'll see "could not open audio
+device" warnings but the rest of the app still works.
 
 ### Install
 

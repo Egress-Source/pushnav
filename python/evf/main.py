@@ -113,10 +113,17 @@ def main() -> None:
         height=_VP_HEIGHT,
         resizable=True,
     )
-    # private_mode=False keeps HTML5 localStorage enabled in WebKit2GTK on
-    # Linux (pywebview's GTK backend disables localStorage in private mode).
-    # macOS WKWebView keeps localStorage alive regardless.
-    webview.start(debug=dev_mode, private_mode=False)
+    # On Linux, force pywebview's Qt backend (QtPy + PyQt6 + PyQt6-WebEngine,
+    # pulled in by the pywebview[qt] extra in pyproject.toml). Without this,
+    # pywebview probes GTK first and only falls through to Qt on ImportError —
+    # works either way, but `gui='qt'` skips the noisy GTK traceback in logs
+    # when PyGObject isn't installed (the supported state on Linux now).
+    # macOS uses Cocoa/WKWebView and Windows uses WebView2 (Edge Chromium);
+    # `gui=None` lets pywebview pick the platform-native backend there.
+    gui = "qt" if sys.platform.startswith("linux") else None
+    # private_mode=False is harmless on Cocoa/WebView2/QtWebEngine and was
+    # historically needed to keep localStorage alive on WebKit2GTK.
+    webview.start(gui=gui, debug=dev_mode, private_mode=False)
 
     engine.shutdown()
 

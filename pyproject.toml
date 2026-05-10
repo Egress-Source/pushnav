@@ -12,6 +12,12 @@ dependencies = [
     "qrcode[pil]",
     "pyerfa>=2.0.0",
     "pywebview>=5.0",
+    # Linux: pull QtPy + PyQt6 + PyQt6-WebEngine. pywebview's GTK backend
+    # would need PyGObject + WebKit2GTK from system packages (apt) and
+    # forces a --system-site-packages venv that fights the repo's
+    # .python-version pin. Qt is pip-installable, uses uv-managed Python,
+    # and QtWebEngine renders MJPEG natively (no polling fallback needed).
+    "pywebview[qt]>=5.0 ; sys_platform == 'linux'",
 ]
 
 [dependency-groups]

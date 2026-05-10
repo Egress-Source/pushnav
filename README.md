@@ -71,19 +71,18 @@ Supports **Windows**, **macOS**, and **Linux**. The core app is written in Pytho
 ### Linux
 
 - GCC, libjpeg-dev, libfuse2 (camera server + AppImage build)
-- GTK 3 + WebKit2 with Python (GObject) bindings (pywebview backend)
+- GStreamer 1 (audio playback)
 
 ```bash
-sudo apt install gcc libjpeg-dev libfuse2 \
-                 python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.1 \
-                 gstreamer1.0-tools
+sudo apt install gcc libjpeg-dev libfuse2 gstreamer1.0-tools
 ```
 
-`pywebview` uses the system PyGObject (`gi`) and WebKit2GTK libraries; these
-ship only as distro packages and cannot be installed from PyPI. The venv
-needs to see them — see [Setup](#setup) below. `gstreamer1.0-tools` provides
-`gst-play-1.0`, which `playsound3` uses for the lock/lost/GOTO audio alerts
-(`aplay` from `alsa-utils` or `ffplay` from `ffmpeg` also work as fallbacks).
+`pywebview` uses its Qt backend on Linux — `pywebview[qt]` (QtPy + PyQt6 +
+PyQt6-WebEngine) is pulled in automatically by `uv sync`, no system
+PyGObject / WebKit2GTK packages required. `gstreamer1.0-tools` provides
+`gst-play-1.0`, which `playsound3` uses for the lock/lost/GOTO audio
+alerts (`aplay` from `alsa-utils` or `ffplay` from `ffmpeg` also work as
+fallbacks).
 
 ### Windows
 
@@ -98,21 +97,6 @@ cd pushnav
 uv sync
 (cd web && npm install)
 ```
-
-### Linux: expose system PyGObject to the venv
-
-On Linux, after the system packages above are installed, recreate the venv
-so it inherits them — `uv sync` alone creates an isolated venv that cannot
-import `gi`:
-
-```bash
-rm -rf .venv
-uv venv --system-site-packages
-uv sync
-```
-
-Without this, `uv run python -m evf.main` fails at startup with
-`ModuleNotFoundError: No module named 'gi'`.
 
 ## Building the Camera Server
 
@@ -176,9 +160,9 @@ out and everything still works in one terminal:
 
 ```bash
 scripts/run_dev.sh           # macOS — builds Swift camera, then evf.main
-scripts/run_dev_linux.sh     # Linux — auto-creates venv with --system-site-packages,
-                             #         installs npm deps, builds React if missing,
-                             #         then evf.main (assumes `make -C camera/linux` ran)
+scripts/run_dev_linux.sh     # Linux — uv sync, installs npm deps and builds
+                             #         React if missing, then evf.main
+                             #         (assumes `make -C camera/linux` ran)
 scripts\run_dev_windows.bat  # Windows — assumes camera\windows\build.bat ran first
 ```
 
