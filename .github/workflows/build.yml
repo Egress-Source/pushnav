@@ -163,10 +163,11 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          # libjpeg-dev/libfuse2/patchelf for camera_server + AppImage tooling.
-          # python3-gi + gir1.2-webkit2-4.1 for pywebview's GTK backend.
-          sudo apt-get install -y gcc libjpeg-dev libfuse2 patchelf \
-              python3-gi gir1.2-webkit2-4.1
+          # gcc + libjpeg-dev: build the V4L2 camera server.
+          # libfuse2 + patchelf: AppImage assembly (mounting + ELF rpath fixups).
+          # pywebview uses Qt on Linux now (PyQt6 + PyQt6-WebEngine come from
+          # the pywebview[qt] extra, no system PyGObject / WebKit2GTK needed).
+          sudo apt-get install -y gcc libjpeg-dev libfuse2 patchelf
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -179,14 +180,11 @@ jobs:
           restore-keys: linux-uv-
 
       - name: Install dependencies
-        # Linux must use the *system* Python, not uv-managed standalone:
-        # pywebview's GTK backend needs PyGObject ('gi') which ships only
-        # as a distro package and is not on PyPI. --system-site-packages
-        # makes 'gi' / WebKit2 visible to the venv. Override .python-version
-        # with the explicit system Python path.
-        run: |
-          uv venv --python /usr/bin/python3.12 --system-site-packages
-          uv sync
+        # uv reads .python-version (3.12.13) and installs the standalone
+        # python-build-standalone interpreter on demand. PyQt6 +
+        # PyQt6-WebEngine are pulled in via pywebview[qt] (Linux-only
+        # marker in pyproject.toml), so no system Python juggling.
+        run: uv sync
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
