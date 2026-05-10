@@ -30,6 +30,43 @@ BUILD_DIR="$REPO_ROOT/build"
 APP_NAME="PushNav-linux"
 APP_DIR="$BUILD_DIR/$APP_NAME"
 
+cd "$REPO_ROOT"
+
+# -------------------------------------------------------------------------
+# Phase 0: Ensure venv is built against system Python with PyGObject.
+# pywebview's GTK backend imports `gi`, which is a distro package (not on
+# PyPI). The repo's .python-version pins uv-managed 3.12.13 for macOS
+# Nuitka builds; on Linux we override that with the system interpreter so
+# the --system-site-packages venv can see PyGObject.
+# -------------------------------------------------------------------------
+find_system_python() {
+    for cand in /usr/bin/python3.12 /usr/bin/python3.13 /usr/bin/python3; do
+        if [ -x "$cand" ] && "$cand" -c "import gi" 2>/dev/null; then
+            echo "$cand"
+            return 0
+        fi
+    done
+    return 1
+}
+
+SYS_PY="$(find_system_python || true)"
+if [ -z "$SYS_PY" ]; then
+    echo "ERROR: No system python3.12+ with PyGObject found."
+    echo "       Install with: sudo apt install python3-gi gir1.2-webkit2-4.1"
+    exit 1
+fi
+echo "==> System Python with PyGObject: $SYS_PY"
+
+if [ ! -d .venv ]; then
+    echo "==> Creating .venv against $SYS_PY with --system-site-packages"
+    uv venv --python "$SYS_PY" --system-site-packages
+elif ! grep -q '^include-system-site-packages = true' .venv/pyvenv.cfg 2>/dev/null; then
+    echo "ERROR: .venv exists but was not created with --system-site-packages."
+    echo "       Fix: rm -rf .venv && uv venv --python $SYS_PY --system-site-packages && uv sync"
+    exit 1
+fi
+uv sync
+
 echo "==> Cleaning previous build"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
