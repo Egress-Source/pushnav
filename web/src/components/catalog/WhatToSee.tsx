@@ -9,6 +9,7 @@ import { BuddyTab } from "./buddy/BuddyTab";
 
 const objects = objectsData as CatalogObject[];
 const SELECTED_KEY = "pushnav.catalog.selected";
+const SUBTAB_KEY = "pushnav.catalog.subtab";
 
 interface Props {
   state: EnginePayload;
@@ -49,28 +50,71 @@ export function WhatToSee({ state, onSwitchToNavigation }: Props) {
     [selectedId],
   );
 
-  return (
-    <div className="flex flex-col lg:grid lg:grid-cols-3 lg:grid-rows-1 gap-3 lg:h-full lg:min-h-0 lg:overflow-hidden">
-      <BuddyTab
-        objects={objects}
-        location={location}
-        evalAt={evalAt}
-        appliedOffsetMin={appliedOffsetMin}
-        setAppliedOffsetMin={setAppliedOffsetMin}
-        selectedId={selectedId}
-        setSelectedId={setSelectedId}
-      />
+  const [subtab, setSubtabState] = useState<"buddy" | "advanced">(() => {
+    return localStorage.getItem(SUBTAB_KEY) === "advanced" ? "advanced" : "buddy";
+  });
+  const setSubtab = (v: "buddy" | "advanced") => {
+    setSubtabState(v);
+    localStorage.setItem(SUBTAB_KEY, v);
+  };
 
-      <Card className="lg:col-span-1 lg:min-h-0 lg:overflow-y-auto pushnav-scrollbar flex flex-col gap-3 px-4 py-3 text-sm">
-        <LocationPanel state={state} />
-        <div className="border-t border-border/60 -mx-4" />
-        <CatalogDetail
-          input={selected ? { kind: "buddy", object: selected } : null}
-          location={location}
-          evalAt={evalAt}
-          onTargetSet={onSwitchToNavigation}
-        />
-      </Card>
+  return (
+    <div className="flex flex-col gap-2 lg:h-full lg:min-h-0">
+      <div className="flex items-center gap-1 self-start rounded-lg bg-muted/40 p-1">
+        <button
+          type="button"
+          onClick={() => setSubtab("buddy")}
+          className={
+            "px-3 py-1 rounded-md text-xs " +
+            (subtab === "buddy"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground")
+          }
+        >
+          Stargazing Buddy
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubtab("advanced")}
+          className={
+            "px-3 py-1 rounded-md text-xs " +
+            (subtab === "advanced"
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground")
+          }
+        >
+          Advanced
+        </button>
+      </div>
+
+      <div className="flex flex-col lg:grid lg:grid-cols-3 lg:grid-rows-1 gap-3 lg:h-full lg:min-h-0 lg:overflow-hidden">
+        {subtab === "buddy" ? (
+          <BuddyTab
+            objects={objects}
+            location={location}
+            evalAt={evalAt}
+            appliedOffsetMin={appliedOffsetMin}
+            setAppliedOffsetMin={setAppliedOffsetMin}
+            selectedId={selectedId}
+            setSelectedId={setSelectedId}
+          />
+        ) : (
+          <Card className="lg:col-span-2 flex items-center justify-center p-6 text-sm text-muted-foreground">
+            Advanced search — coming in Task 10.
+          </Card>
+        )}
+
+        <Card className="lg:col-span-1 lg:min-h-0 lg:overflow-y-auto pushnav-scrollbar flex flex-col gap-3 px-4 py-3 text-sm">
+          <LocationPanel state={state} />
+          <div className="border-t border-border/60 -mx-4" />
+          <CatalogDetail
+            input={selected ? { kind: "buddy", object: selected } : null}
+            location={location}
+            evalAt={evalAt}
+            onTargetSet={onSwitchToNavigation}
+          />
+        </Card>
+      </div>
     </div>
   );
 }
