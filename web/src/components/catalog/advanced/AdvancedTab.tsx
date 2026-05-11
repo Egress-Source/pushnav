@@ -8,6 +8,7 @@ import ngcData from "@/data/openngc.json";
 import starData from "@/data/hyg-bright.json";
 import { SearchInput } from "./SearchInput";
 import { ResultsList } from "./ResultsList";
+import { ManualEntry } from "./ManualEntry";
 
 const ngcList: NgcEntry[] = (ngcData as Omit<NgcEntry, "source">[])
   .map((e) => ({ ...e, source: "ngc" as const }));
@@ -46,6 +47,20 @@ export function AdvancedTab({ selected, onSelect }: Props) {
   return (
     <Card className="lg:col-span-2 flex flex-col gap-2 px-3 py-3 min-h-0 max-h-[70vh] lg:max-h-none">
       <SearchInput value={query} onChange={setQueryRaw} />
+      <details className="text-xs">
+        <summary className="cursor-pointer text-muted-foreground hover:text-foreground py-1">
+          Manual RA/Dec entry
+        </summary>
+        <div className="mt-2">
+          <ManualEntry
+            current={selected && selected.source === "manual" ? selected : null}
+            onSubmit={(m) => onSelect(m)}
+            onClear={() => {
+              if (selected && selected.source === "manual") onSelect(null);
+            }}
+          />
+        </div>
+      </details>
       <div className="border-t border-border/60 -mx-3" />
       <div className="flex-1 min-h-0 overflow-y-auto pushnav-scrollbar -mx-3 px-3">
         {debounced.trim() === "" ? (
