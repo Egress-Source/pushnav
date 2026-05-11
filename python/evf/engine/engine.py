@@ -525,6 +525,9 @@ class Engine:
 
         Only valid from SYNC state when config has saved calibration data.
         """
+        if not self.camera_connected:
+            logger.info("use_previous_calibration ignored — camera not connected")
+            return
         if self._state_machine.state != EngineState.SYNC:
             return
         if not self._config.has_calibration:
@@ -546,6 +549,13 @@ class Engine:
         """Advance the wizard: SETUP → SYNC → SYNC_CONFIRM → CALIBRATE → WARMING_UP, or stop."""
         state = self._state_machine.state
         logger.info("step_advance called, state=%s", state.value)
+        # Every forward step needs camera frames. Only the "stop tracking"
+        # branch (WARMING_UP/TRACKING → SETUP) works without a camera.
+        if not self.camera_connected and state not in (
+            EngineState.WARMING_UP, EngineState.TRACKING,
+        ):
+            logger.info("step_advance ignored — camera not connected")
+            return
         if state == EngineState.SETUP:
             self._state_machine.transition(EngineState.SYNC)
         elif state == EngineState.SYNC:

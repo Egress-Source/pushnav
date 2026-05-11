@@ -3,7 +3,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { api } from "@/lib/api";
 import type { EnginePayload } from "@/lib/types";
 
-export function SetupStep({ state: _ }: { state: EnginePayload }) {
+export function SetupStep({ state }: { state: EnginePayload }) {
+  const noCamera = !state.camera.connected;
   return (
     <Card>
       <CardHeader>
@@ -14,8 +15,19 @@ export function SetupStep({ state: _ }: { state: EnginePayload }) {
           is too dark or too bright. When the stars look sharp, press Next.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex gap-2">
-        <Button onClick={() => api.wizardAdvance()}>Next</Button>
+      <CardContent className="flex gap-2 items-center">
+        <Button
+          onClick={() => api.wizardAdvance()}
+          disabled={noCamera}
+          title={noCamera ? "Camera not connected" : undefined}
+        >
+          Next
+        </Button>
+        {noCamera && (
+          <span className="text-xs text-muted-foreground">
+            Plate-solving needs a camera — wizard disabled.
+          </span>
+        )}
       </CardContent>
     </Card>
   );
