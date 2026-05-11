@@ -16,14 +16,32 @@ const starList: StarEntry[] = (starData as Omit<StarEntry, "source">[])
   .map((e) => ({ ...e, source: "star" as const }));
 const allEntries: (NgcEntry | StarEntry)[] = [...ngcList, ...starList];
 
+// Persist the search query so it survives Navigation ↔ What-to-see flips
+// (which unmount this component) and full reloads. The selection is
+// persisted in WhatToSee via pushnav.catalog.advanced.selected; together
+// the two cover everything the user sees in this tab.
+const QUERY_KEY = "pushnav.catalog.advanced.query";
+
 interface Props {
   selected: AdvancedEntry | null;
   onSelect: (entry: AdvancedEntry | null) => void;
 }
 
 export function AdvancedTab({ selected, onSelect }: Props) {
-  const [query, setQueryRaw] = useState("");
-  const [debounced, setDebounced] = useState("");
+  const [query, setQueryRaw] = useState<string>(
+    () => localStorage.getItem(QUERY_KEY) ?? "",
+  );
+  // Seed `debounced` with the same persisted value so results render
+  // immediately on mount — otherwise the first paint shows the
+  // empty-state hint even when the user had previously typed a query.
+  const [debounced, setDebounced] = useState<string>(
+    () => localStorage.getItem(QUERY_KEY) ?? "",
+  );
+  const setQuery = (v: string) => {
+    setQueryRaw(v);
+    if (v === "") localStorage.removeItem(QUERY_KEY);
+    else localStorage.setItem(QUERY_KEY, v);
+  };
   useEffect(() => {
     const id = setTimeout(() => setDebounced(query), 100);
     return () => clearTimeout(id);
@@ -46,7 +64,7 @@ export function AdvancedTab({ selected, onSelect }: Props) {
 
   return (
     <Card className="lg:col-span-2 flex flex-col gap-2 px-3 py-3 min-h-0 max-h-[70vh] lg:max-h-none">
-      <SearchInput value={query} onChange={setQueryRaw} />
+      <SearchInput value={query} onChange={setQuery} />
       <details className="text-xs">
         <summary className="cursor-pointer text-muted-foreground hover:text-foreground py-1">
           Manual RA/Dec entry
