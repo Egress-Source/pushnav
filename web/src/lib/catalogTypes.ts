@@ -50,3 +50,34 @@ export function azimuthCompass(azDeg: number): string {
   const idx = Math.round(((azDeg % 360) + 360) / 22.5) % 16;
   return COMPASS_POINTS[idx];
 }
+
+// Advanced catalog search types (Task 5+)
+export interface NgcEntry {
+  source: "ngc";
+  id: string;
+  aliases: string[];
+  type: string;
+  ra_deg: number;
+  dec_deg: number;
+  mag: number | null;
+  constellation: string | null;
+}
+
+export interface StarEntry {
+  source: "star";
+  id: string;
+  aliases: string[];
+  ra_deg: number;
+  dec_deg: number;
+  mag: number | null;
+  spectral: string | null;
+  constellation: string | null;
+}
+
+export interface ManualEntry {
+  source: "manual";
+  ra_deg: number;
+  dec_deg: number;
+}
+
+export type AdvancedEntry = NgcEntry | StarEntry | ManualEntry;
