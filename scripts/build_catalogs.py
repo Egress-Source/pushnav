@@ -33,7 +33,6 @@ import csv
 import json
 import re
 from pathlib import Path
-from typing import Iterable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OPENNGC_CSV = REPO_ROOT / "data" / "catalogs" / "openngc" / "NGC.csv"

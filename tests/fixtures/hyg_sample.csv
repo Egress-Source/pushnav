@@ -7,3 +7,4 @@ id,hip,hd,hr,gl,bf,proper,ra,dec,mag,spect,con
 6,11111,222222,,,,,12.3456,-45.6789,8.5,K0V,Sco
 7,22222,333333,,,15Bet Cyg,Albireo,19.5125,27.9595,3.05,K2II,Cyg
 8,33333,,,,,,2.0,2.0,11.5,M5V,Ori
+0,0,0,0,Sol,,Sun,0.0,0.0,-26.7,G2V,

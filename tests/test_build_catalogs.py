@@ -59,9 +59,14 @@ def test_openngc_ra_dec_in_degrees():
 def test_openngc_prefers_v_mag_else_b_mag_else_null():
     entries = build_catalogs.trim_openngc(FIXTURES / "openngc_sample.csv")
     by_id = {e["id"]: e for e in entries}
+    # V-Mag wins when both are present.
     assert by_id["NGC 224"]["mag"] == pytest.approx(3.44)
-    # NGC 1976 has V-Mag only
+    # NGC 1976 has V-Mag only.
     assert by_id["NGC 1976"]["mag"] == pytest.approx(4.00)
+    # NGC 9999 has B-Mag only — falls back to B-Mag.
+    assert by_id["NGC 9999"]["mag"] == pytest.approx(5.50)
+    # NGC 9998 has neither — emits null.
+    assert by_id["NGC 9998"]["mag"] is None
 
 
 # ----- HYG -------------------------------------------------------------------
@@ -103,9 +108,8 @@ def test_hyg_aliases_include_hip_hd_hr_and_bayer():
 
 
 def test_hyg_skips_self_origin_row():
-    """HYG row 0 is the Sun (id=0). Make sure we don't ship it."""
-    # Our fixture starts at id=1, so the assertion is implicit — but be
-    # explicit so the trim function stays defensive against id == 0.
+    """HYG row 0 is the Sun; build_catalogs must not ship it even
+    though it satisfies the bright-magnitude trim rule."""
     entries = build_catalogs.trim_hyg(FIXTURES / "hyg_sample.csv")
-    for e in entries:
-        assert e["id"] != "Sun"
+    assert all(e["id"] != "Sun" for e in entries)
+    assert all("Sun" not in e["aliases"] for e in entries)
