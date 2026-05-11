@@ -34,8 +34,9 @@ def test_openngc_trim_keeps_real_objects():
 def test_openngc_trim_drops_duplicate_and_star_rows():
     entries = build_catalogs.trim_openngc(FIXTURES / "openngc_sample.csv")
     ids = {e["id"] for e in entries}
-    assert "DUMMY 01" not in ids
-    assert "DUMMY 02" not in ids
+    assert "DUMMY 01" not in ids   # Dup
+    assert "DUMMY 02" not in ids   # *
+    assert "DUMMY 03" not in ids   # **
 
 
 def test_openngc_aliases_include_messier_and_common_names():
@@ -87,6 +88,7 @@ def test_hyg_trim_drops_dim_unnamed_rows():
     ids = {e["id"] for e in entries}
     assert "HIP 11111" not in ids
     assert "HIP 33333" not in ids
+    assert "HD 888888" not in ids   # old row 5, now truly identifierless
 
 
 def test_hyg_ra_dec_converted_from_hours_to_degrees():
@@ -112,4 +114,15 @@ def test_hyg_skips_self_origin_row():
     though it satisfies the bright-magnitude trim rule."""
     entries = build_catalogs.trim_hyg(FIXTURES / "hyg_sample.csv")
     assert all(e["id"] != "Sun" for e in entries)
+    assert all(e["id"] != "Sol" for e in entries)
     assert all("Sun" not in e["aliases"] for e in entries)
+    assert all("Sol" not in e["aliases"] for e in entries)
+
+
+def test_hyg_gliese_id_and_aliases_are_not_double_prefixed():
+    """HYG's 'gl' column already contains 'Gl ' — build_catalogs must
+    not add another 'Gl ' prefix on top."""
+    entries = build_catalogs.trim_hyg(FIXTURES / "hyg_sample.csv")
+    gl411 = next(e for e in entries if e["id"] == "Gl 411")
+    assert "Gl Gl 411" not in gl411["aliases"]
+    assert "Gl 411" in gl411["aliases"]

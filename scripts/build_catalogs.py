@@ -130,7 +130,7 @@ def trim_openngc(csv_path: Path) -> list[dict]:
         reader = csv.DictReader(f, delimiter=";")
         for row in reader:
             kind = (row.get("Type") or "").strip()
-            if kind in {"Dup", "*", ""}:
+            if kind in {"Dup", "*", "**", ""}:
                 continue
             ra_raw = (row.get("RA") or "").strip()
             dec_raw = (row.get("Dec") or "").strip()
@@ -170,11 +170,12 @@ def trim_hyg(csv_path: Path) -> list[dict]:
         for row in reader:
             proper = (row.get("proper") or "").strip()
             bf_raw = (row.get("bf") or "").strip()
+            gl  = (row.get("gl")  or "").strip()
             mag = _parse_float(row.get("mag", ""))
-            # Trim rule: any of named / Bayer-Flamsteed / bright
+            # Trim rule: any of named / Bayer-Flamsteed / Gliese / bright
             has_bf = bool(bf_raw)
             bright = mag is not None and mag <= 6.0
-            if not (proper or has_bf or bright):
+            if not (proper or has_bf or gl or bright):
                 continue
             ra_h = _parse_float(row.get("ra", ""))
             dec_d = _parse_float(row.get("dec", ""))
@@ -183,7 +184,6 @@ def trim_hyg(csv_path: Path) -> list[dict]:
             hip = (row.get("hip") or "").strip()
             hd  = (row.get("hd")  or "").strip()
             hr  = (row.get("hr")  or "").strip()
-            gl  = (row.get("gl")  or "").strip()
             spect = (row.get("spect") or "").strip() or None
             con = (row.get("con") or "").strip() or None
             flam_label, bayer_label = _bayer_flam_pretty(bf_raw)
@@ -201,10 +201,10 @@ def trim_hyg(csv_path: Path) -> list[dict]:
             elif hr:
                 ident = f"HR {hr}"
             elif gl:
-                ident = f"Gl {gl}"
+                ident = gl
             else:
                 continue                       # nothing to call this row
-            if ident == "Sun":
+            if ident in {"Sun", "Sol"}:
                 continue
             aliases: list[str] = []
             if proper:        aliases.append(proper)
@@ -213,7 +213,7 @@ def trim_hyg(csv_path: Path) -> list[dict]:
             if hip:           aliases.append(f"HIP {hip}")
             if hd:            aliases.append(f"HD {hd}")
             if hr:            aliases.append(f"HR {hr}")
-            if gl:            aliases.append(f"Gl {gl}")
+            if gl:            aliases.append(gl)
             # De-dup while preserving order.
             seen: set[str] = set()
             aliases = [a for a in aliases if not (a in seen or seen.add(a))]
