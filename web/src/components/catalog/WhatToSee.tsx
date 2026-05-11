@@ -20,10 +20,24 @@ interface Props {
   onSwitchToNavigation: () => void;
 }
 
+const SELECTED_KEY = "pushnav.catalog.selected";
+
 export function WhatToSee({ state, onSwitchToNavigation }: Props) {
   const [filters, setFilters] = useCatalogFilters();
   const [appliedOffsetMin, setAppliedOffsetMin] = useState(0);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Persist the catalog selection across tab switches and full page
+  // reloads — matches the localStorage approach used for `view` and the
+  // catalog filters. Survives WhatToSee unmount when the user flips to
+  // the Navigation tab.
+  const [selectedId, setSelectedIdState] = useState<string | null>(() => {
+    const raw = localStorage.getItem(SELECTED_KEY);
+    return raw && objects.some((o) => o.id === raw) ? raw : null;
+  });
+  const setSelectedId = (id: string | null) => {
+    setSelectedIdState(id);
+    if (id === null) localStorage.removeItem(SELECTED_KEY);
+    else localStorage.setItem(SELECTED_KEY, id);
+  };
 
   const [tickNow, setTickNow] = useState(() => Date.now());
   useEffect(() => {
@@ -94,7 +108,7 @@ export function WhatToSee({ state, onSwitchToNavigation }: Props) {
         <LocationPanel state={state} />
         <div className="border-t border-border/60 -mx-4" />
         <CatalogDetail
-          object={selected}
+          input={selected ? { kind: "buddy", object: selected } : null}
           location={location}
           evalAt={evalAt}
           onTargetSet={onSwitchToNavigation}
