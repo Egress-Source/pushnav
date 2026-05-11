@@ -237,7 +237,21 @@ def _write_json(path: Path, data: list[dict]) -> None:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
 
 
+def _needs_rebuild() -> bool:
+    """True if either output JSON is missing or older than its source CSV."""
+    pairs = [(OPENNGC_CSV, OPENNGC_OUT), (HYG_CSV, HYG_OUT)]
+    for src, dst in pairs:
+        if not dst.exists():
+            return True
+        if src.exists() and src.stat().st_mtime > dst.stat().st_mtime:
+            return True
+    return False
+
+
 def main() -> None:
+    import sys
+    if "--needs-rebuild" in sys.argv:
+        sys.exit(0 if _needs_rebuild() else 1)
     ngc = trim_openngc(OPENNGC_CSV)
     _write_json(OPENNGC_OUT, ngc)
     print(f"openngc.json: {len(ngc):>6} entries → {OPENNGC_OUT}")

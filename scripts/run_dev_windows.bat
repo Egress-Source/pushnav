@@ -22,22 +22,28 @@ cd /d "%~dp0.."
 
 uv sync || exit /b 1
 
+uv run python scripts/build_catalogs.py --needs-rebuild
+if not errorlevel 1 (
+    echo ==^> Rebuilding catalog JSONs
+    uv run python scripts/build_catalogs.py || exit /b 1
+)
+
 REM evf.main auto-detects Vite on :5173 and otherwise loads the prebuilt
-REM bundle from :8765 -- make sure web\dist exists when Vite isn't running.
+REM bundle from :8765 -- rebuild on every dev launch so source edits are
+REM reflected. Skipped when Vite is serving HMR on :5173 because the
+REM bundle isn't read in that path.
 netstat -an | findstr ":5173" | findstr "LISTENING" >nul
 if errorlevel 1 (
-    if not exist "web\dist\index.html" (
-        if not exist "web\node_modules" (
-            echo ==^> Installing web\ npm dependencies
-            pushd web
-            call npm install || ( popd & exit /b 1 )
-            popd
-        )
-        echo ==^> No Vite on :5173 and no web\dist -- building React bundle
+    if not exist "web\node_modules" (
+        echo ==^> Installing web\ npm dependencies
         pushd web
-        call npm run build || ( popd & exit /b 1 )
+        call npm install || ( popd & exit /b 1 )
         popd
     )
+    echo ==^> Rebuilding React bundle ^(no Vite on :5173^)
+    pushd web
+    call npm run build || ( popd & exit /b 1 )
+    popd
 )
 
 uv run python -m evf.main

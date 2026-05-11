@@ -26,17 +26,22 @@ cd "$(dirname "$0")/.."
 # --system-site-packages venv juggling.
 uv sync
 
+if uv run python scripts/build_catalogs.py --needs-rebuild; then
+    echo "==> Rebuilding catalog JSONs"
+    uv run python scripts/build_catalogs.py
+fi
+
 # evf.main auto-detects Vite on :5173 and otherwise loads the prebuilt
-# bundle from :8765 — make sure web/dist exists when Vite isn't running.
+# bundle from :8765 — rebuild on every dev launch so source edits are
+# reflected. Skipped when Vite is serving HMR on :5173 because the bundle
+# isn't read in that path.
 if ! (exec 3<>/dev/tcp/localhost/5173) 2>/dev/null; then
-    if [ ! -f web/dist/index.html ]; then
-        if [ ! -d web/node_modules ]; then
-            echo "==> Installing web/ npm dependencies"
-            (cd web && npm install)
-        fi
-        echo "==> No Vite on :5173 and no web/dist — building React bundle"
-        (cd web && npm run build)
+    if [ ! -d web/node_modules ]; then
+        echo "==> Installing web/ npm dependencies"
+        (cd web && npm install)
     fi
+    echo "==> Rebuilding React bundle (no Vite on :5173)"
+    (cd web && npm run build)
 fi
 
 uv run python -m evf.main
