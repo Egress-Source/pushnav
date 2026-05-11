@@ -62,6 +62,7 @@ class EngineActions(Protocol):
     def sync_retry(self) -> None: ...
     def set_sync_selected(self, idx: int) -> None: ...
     def use_previous_calibration(self) -> None: ...
+    def retry_camera(self) -> bool: ...
     def set_control(self, name: str, value: int) -> None: ...
     def clear_goto_target(self) -> None: ...
     def set_goto_target(self, ra_deg: float, dec_deg: float) -> None: ...
@@ -232,6 +233,7 @@ class WebServer:
         app.router.add_post("/api/sync/retry", self._api_sync_retry)
         app.router.add_post("/api/sync/select", self._api_sync_select)
         app.router.add_post("/api/calibration/use-previous", self._api_use_previous_calibration)
+        app.router.add_post("/api/camera/retry", self._api_camera_retry)
         app.router.add_post("/api/control", self._api_set_control)
         app.router.add_post("/api/goto/clear", self._api_goto_clear)
         app.router.add_post("/api/goto/set", self._api_goto_set)
@@ -419,6 +421,17 @@ class WebServer:
 
     async def _api_use_previous_calibration(self, request):
         return await self._handle_api(request, lambda: self._actions.use_previous_calibration())
+
+    async def _api_camera_retry(self, request: web.Request) -> web.Response:
+        """Re-attempt camera startup. Returns 200 + {connected: bool}."""
+        if self._actions is None:
+            return web.Response(status=503, text="No actions wired")
+        try:
+            connected = await asyncio.to_thread(self._actions.retry_camera)
+        except Exception as exc:
+            logger.exception("retry_camera failed: %s", exc)
+            return web.Response(status=500, text=str(exc))
+        return web.json_response({"connected": bool(connected)})
 
     async def _api_set_control(self, request):
         body = await request.json()

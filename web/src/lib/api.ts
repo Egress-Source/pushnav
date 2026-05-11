@@ -15,6 +15,13 @@ export const api = {
   syncRetry: () => post("/api/sync/retry"),
   syncSelect: (idx: number) => post("/api/sync/select", { idx }),
   useCalibration: () => post("/api/calibration/use-previous"),
+  retryCamera: async (): Promise<{ connected: boolean }> => {
+    const resp = await fetch("/api/camera/retry", { method: "POST" });
+    if (resp.status >= 400) {
+      throw new Error(`POST /api/camera/retry → ${resp.status}: ${await resp.text()}`);
+    }
+    return await resp.json();
+  },
   setControl: (name: string, value: number) => post("/api/control", { name, value }),
   clearGoto: () => post("/api/goto/clear"),
   setGoto: (ra_deg: number, dec_deg: number) =>

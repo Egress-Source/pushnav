@@ -496,6 +496,28 @@ class Engine:
             logger.error("Failed to start camera: %s", exc)
             self._subprocess_mgr = None
 
+    def retry_camera(self) -> bool:
+        """Re-attempt camera startup on demand (e.g. user just plugged it in).
+
+        Idempotent: if a camera is already connected, returns True without
+        doing anything. Otherwise drops any stale SubprocessManager,
+        re-runs startup_camera, and brings up the solver thread on success.
+        Same code path as the initial boot, so the platform-specific risk
+        surface (binary resolution, _kill_stale_server, Popen, handshake)
+        is identical to what already runs once at every launch.
+        Returns the post-attempt camera_connected state.
+        """
+        if self.camera_connected:
+            return True
+        # Drop the stale manager so startup_camera builds a fresh one;
+        # _kill_stale_server inside SubprocessManager._spawn_process will
+        # reap any orphaned camera_server left over from the prior failure.
+        self._subprocess_mgr = None
+        self.startup_camera()
+        if self.camera_connected and self._solver_thread is None:
+            self.startup_solver_thread()
+        return self.camera_connected
+
     def startup_solver_thread(self) -> None:
         """Create solver thread object (not started until user enables tracking)."""
         if self._solver:
