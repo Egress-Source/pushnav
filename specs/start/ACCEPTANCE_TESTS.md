@@ -32,6 +32,7 @@ Current coverage:
 | J       | Manual    | —                                                            |
 | K       | Automated | `test_solver_offline.py`, `test_phase1.py`, `test_offline_full.py`, `test_navigation.py`, `test_sync.py` |
 | L       | Mixed     | `test_epoch.py`, `test_lx200_protocol.py`, `test_lx200_server.py` (L8); manual for L1–L7                |
+| M       | Manual    | —                                                            |
 
 ---
 
@@ -324,3 +325,50 @@ Summary of verification points:
 - **L7** — SkySafari + KStars attached simultaneously; both see consistent position.
 - **L8** — Unit tests (`tests/test_epoch.py`, `tests/test_lx200_protocol.py`, `tests/test_lx200_server.py`) all pass.
 - **L9** — Nuitka bundle on all three platforms: packaged binary logs `LX200 server listening on 0.0.0.0:4030` (implicitly tests `import erfa` inside the bundle).
+
+## M. Sky View 3D Dome
+
+### M1. Render in every wizard state
+- [ ] Dome renders during `SETUP`, `SYNC`, `SYNC_CONFIRM`, `CALIBRATE`,
+      `WARMING_UP`, and `TRACKING`.
+- [ ] Grid, horizon circle, ground tint, and cardinal labels (N, NE, E,
+      SE, S, SW, W, NW, Z) are visible.
+
+### M2. Pointing marker
+- [ ] In TRACKING with `state.pointing.valid` true, a yellow sphere
+      appears at the current pointing's alt/az.
+- [ ] A semi-transparent wireframe-edged red cylinder runs from the
+      dome centre along the pointing direction (~30% of the dome
+      radius long).
+- [ ] A dashed red line runs from the dome centre to the pointing
+      marker.
+
+### M3. Target marker
+- [ ] Send a GOTO from any client. A cream sphere appears at the
+      target's alt/az with the target name floating above it (HTML
+      overlay).
+- [ ] A solid red line runs from the dome centre to the target marker.
+- [ ] Clearing the target removes the marker, label, and line.
+
+### M4. Below-horizon target
+- [ ] Send a GOTO for an object that is below the horizon (e.g. send
+      from SkySafari with the object low or past set).
+- [ ] Target marker, label, and line are hidden.
+- [ ] A "Target below horizon" badge appears at the top of the dome.
+
+### M5. Missing location
+- [ ] Clear the location (or start a fresh install without Stellarium
+      connected).
+- [ ] Both pointing and target markers are hidden.
+- [ ] A "Location info required" overlay sits centred over the dome.
+
+### M6. Interactivity
+- [ ] Drag inside the dome orbits the view; constrained to the upper
+      hemisphere (cannot rotate below the ground plane).
+- [ ] Scroll/pinch zooms in and out within bounds.
+- [ ] Panning is disabled.
+
+### M7. Offline-safe (no network requests)
+- [ ] Disconnect from the internet, restart PushNav, enter TRACKING.
+- [ ] No CDN requests are made (DevTools Network tab is silent).
+- [ ] Cardinal labels and the target name render correctly.

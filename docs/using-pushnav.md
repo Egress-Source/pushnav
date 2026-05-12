@@ -46,6 +46,22 @@ When a target is active, the main view shows directional arrows (**LEFT / RIGHT 
 
 As you push the telescope, the numbers shrink live. When they get close to zero, look through your eyepiece. Your target should be there.
 
+## The Sky View dome
+
+The right side of the wizard always shows a small interactive **Sky View** — a 3D hemisphere with cardinal directions and a horizon. Up to two markers can appear on it:
+
+- A **yellow dot** with a semi-transparent red telescope cylinder along its line: where the scope is currently pointing.
+- A **cream dot** with the target's name floating above it: where the active GOTO target sits.
+
+A **solid red line** runs from the centre of the hemisphere to the target marker, and a **dashed red line** runs to the pointing marker. Together they make it easy to read, at a glance, whether the target is east or west of where you're aimed, higher or lower in the sky, and how far off you are.
+
+Drag the dome to orbit, scroll to zoom. The view is purely for spatial orientation — it doesn't show stars or DSOs (planetarium apps do that better). It stays visible during every phase: setup, sync, roll calibration, and tracking — so you always have a sky-relative picture of where you and the target are.
+
+A couple of edge cases the dome handles:
+
+- **Target below horizon** — the target marker and line are hidden, and a small "Target below horizon" badge appears at the top of the dome. Same situation that disables the catalog's Set as target button.
+- **Location not set** — both markers and lines are hidden, and a "Location info required" overlay sits over the otherwise interactive dome.
+
 ## Using the mobile companion
 
 You don't need to keep looking at your laptop while pushing. Open PushNav's **Settings** panel, scan the **QR code** with your phone, and you'll get a live mobile view showing the same push direction and target info, right in your hand at the eyepiece.

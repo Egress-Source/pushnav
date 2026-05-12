@@ -52,6 +52,7 @@ Supports **Windows**, **macOS**, and **Linux**. The core app is written in Pytho
 - Built-in **"What to See"** target picker — pick a target without leaving PushNav. Three modes: a curated **Buddy** catalog (161 hand-picked deep-sky objects with filters), an **Advanced** fuzzy search across 12,522 NGC objects and 8,825 bright stars, and **Manual coordinates** for anything else. See [Using PushNav](using-pushnav.md#picking-targets-inside-pushnav).
 - Audio feedback for lock/lost/GOTO events
 - Mobile web interface: scan a QR code on the PushNav screen with your phone for at-the-eyepiece push direction, no app install needed
+- Always-visible **Sky View** — an interactive 3D hemispheric dome showing current pointing, the active target, and a small telescope marker on the pointing axis; visible during every step of the workflow.
 - Saves calibration for quick re-sync
 - Works from urban light-polluted skies with the right camera/lens combo (see hardware guide)
 

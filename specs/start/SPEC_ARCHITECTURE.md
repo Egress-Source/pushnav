@@ -29,6 +29,7 @@ Supports Future Headless Mode
 │    (prod) or http://localhost:5173 (dev,      │
 │    Vite HMR)                                  │
 │  - Step wizard (Camera → Sync → Roll → Track) │
+│  - Sky View 3D dome (pointing + target alt/az)│
 │  - Live view via /frame.mjpg + SVG overlays   │
 │  - Exposure/Gain control sliders              │
 │  - Navigation guidance + star overlay         │

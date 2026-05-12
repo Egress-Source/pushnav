@@ -54,6 +54,7 @@ Supports **Windows**, **macOS**, and **Linux**. The core app is written in Pytho
 - Live activity indicators in the app showing when Stellarium or LX200 clients are talking
 - IAU 2006 J2000 ↔ JNow precession via `pyerfa` at the LX200 boundary (SkySafari expects JNow, PushNav stores J2000)
 - Audio feedback for lock/lost/GOTO events
+- Always-visible **Sky View** — an interactive 3D hemispheric dome rendered alongside the wizard, showing where the scope is pointing (yellow marker + semi-transparent red telescope cylinder) and where the target sits (cream marker with name label), with solid/dashed lines from the dome centre. Useful as a spatial check during sync, roll calibration, and tracking alike.
 - Saves calibration for quick re-sync
 - Works from urban light-polluted skies with the right camera/lens combo (see hardware guide)
 

@@ -95,6 +95,36 @@ Four-step wizard: Camera → Sync → Roll → Track
   `GotoTarget.set()` which plays the sound internally).
 - Audio can be enabled/disabled in settings.
 
+### Sky View
+
+- Always-visible 3D hemispheric dome in the wizard's right column,
+  rendered with `@react-three/fiber` (`web/src/components/live-view/SkyDome/`).
+- Two altitude/azimuth markers, derived from `state.pointing` and
+  `state.nav.{target_ra_deg, target_dec_deg}` via `altAzFromRaDec()`
+  in `web/src/lib/astronomy.ts`:
+  - Pointing marker — yellow sphere on the dome surface, plus a semi-
+    transparent wireframe-edged red cylinder along the pointing axis
+    (centred between the dome origin and the marker) representing the
+    telescope's direction. Length = 30% of the sphere radius.
+  - Target marker — cream sphere with the target name as an HTML label.
+- Two lines from the dome centre (0, 0, 0) to each marker:
+  - **Solid** red line to the target.
+  - **Dashed** red line to the pointing.
+- Cardinal direction labels (N, NE, E, SE, S, SW, W, NW) and the zenith
+  label are rendered with drei `<Html>` overlays — OS font, no SDF
+  worker, no external network requests (the app is fully offline).
+- The dome is rendered in every wizard state; markers appear only when
+  the corresponding data is available.
+- Below-horizon target: marker, line, and (if applicable) telescope
+  cylinder hidden; a "Target below horizon" badge is overlaid at the
+  top of the dome.
+- Missing location (`state.location.latitude` / `longitude` null):
+  both markers and lines hidden; a "Location info required" overlay
+  sits over the still-interactive dome.
+- Interactive: orbit (drag), zoom (scroll); pan disabled; OrbitControls
+  constrained to the upper hemisphere (no rotating below the ground
+  plane).
+
 ### Mobile Web Interface
 - Built-in HTTP + WebSocket server on `0.0.0.0:<webserver.port>` (default 8765).
 - Serves `data/web/index.html` — a single-page mobile view with no install.
@@ -410,6 +440,11 @@ Verbose mode logs:
   target** button is disabled (only when a location is known).
 - Advanced search query persists across Buddy ↔ Advanced sub-tab switches
   within a session.
+- Always-visible Sky View 3D dome (right column of every wizard step):
+  pointing marker (yellow), target marker (cream), telescope cylinder
+  along the pointing axis, solid target line + dashed pointing line.
+  Interactive (drag/zoom). Shows "Location info required" or "Target
+  below horizon" overlays when applicable.
 - Debug section (dev mode only) for frame capture and sample injection
 - Consecutive failure counter and last solve age display
 
@@ -439,6 +474,11 @@ Verbose mode logs:
   when the plate-solve converges within 0.5°.
 - Mobile web interface reachable from a phone on the same Wi-Fi via the
   QR code in the Settings panel.
+- Sky View dome renders in every wizard state (SETUP, SYNC, SYNC_CONFIRM,
+  CALIBRATE, WARMING_UP, TRACKING). Pointing marker tracks the current
+  solve when `state.pointing.valid`; target marker tracks the active
+  GOTO when `state.nav.active`. Below-horizon target → marker hidden,
+  badge shown. Location null → markers hidden, overlay shown.
 - Audio feedback on lock/lost transitions.
 - Unplug camera → auto restart attempts.
 - Exceed retry limit → ERROR state.
