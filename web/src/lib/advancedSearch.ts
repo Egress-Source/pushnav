@@ -1,5 +1,9 @@
 import type { AdvancedEntry } from "./catalogTypes";
 
+// Manual entries lack id/aliases/mag and are filtered out by scoreEntry, so
+// the search return type narrows to the non-manual variants.
+type SearchableEntry = Exclude<AdvancedEntry, { source: "manual" }>;
+
 const RESULT_CAP = 200;
 
 /** Lowercase + strip non-alphanumeric (so "M 31", "m31", "m-31" all collide). */
@@ -8,7 +12,7 @@ export function normaliseQuery(s: string): string {
 }
 
 interface Scored {
-  entry: AdvancedEntry;
+  entry: SearchableEntry;
   score: number;
 }
 
@@ -26,11 +30,12 @@ interface Scored {
  */
 export function advancedSearch(
   query: string, entries: AdvancedEntry[],
-): AdvancedEntry[] {
+): SearchableEntry[] {
   const q = normaliseQuery(query);
   if (!q) return [];
   const scored: Scored[] = [];
   for (const entry of entries) {
+    if (entry.source === "manual") continue;
     const score = scoreEntry(q, entry);
     if (score > 0) scored.push({ entry, score });
   }
