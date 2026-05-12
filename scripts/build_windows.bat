@@ -91,6 +91,11 @@ uv run python -m nuitka ^
     --standalone ^
     --windows-console-mode=disable ^
     --windows-icon-from-ico="%REPO_ROOT%\marketing\logo.ico" ^
+    --windows-product-name=PushNav ^
+    --windows-company-name="Arun Venkataswamy" ^
+    --windows-file-description="PushNav - plate-solving push-to" ^
+    --windows-product-version=%APP_VERSION%.0 ^
+    --windows-file-version=%APP_VERSION%.0 ^
     --output-dir="%BUILD_DIR%" ^
     --output-filename=evf.exe ^
     --include-package=numpy ^
