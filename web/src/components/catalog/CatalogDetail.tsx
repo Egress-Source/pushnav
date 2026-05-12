@@ -120,9 +120,13 @@ export function CatalogDetail({
       {/* Action row */}
       <div className="flex items-center gap-2">
         <Button size="sm" onClick={handleSetTarget}
-                disabled={setting || raDeg === null || decDeg === null}>
+                disabled={setting || raDeg === null || decDeg === null
+                          || (altDeg !== null && altDeg < 0)}>
           {setting ? "Setting…" : "Set as target"}
         </Button>
+        {altDeg !== null && altDeg < 0 && (
+          <span className="text-xs text-muted-foreground">Below horizon</span>
+        )}
         {input.kind === "buddy" && (
           <a href={buddyUrl(input.object.id)} target="_blank"
              rel="noopener noreferrer"
