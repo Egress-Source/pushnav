@@ -130,9 +130,9 @@ Log out and back in for the change to take effect.
 
 ## Before you launch
 
-**Plug in your USB camera before starting PushNav.** The app looks for the camera at startup and won't continue without one.
+You can launch PushNav with or without a camera plugged in. If you start it without one, the live-view area shows a **"Camera not connected"** placeholder with a **Retry** button — plug the camera in, click Retry, and PushNav picks up where it would have started. The rest of the app (Settings, Connectivity, the "What to See" catalog) is fully usable in the meantime, so you can plan a session indoors before stepping out to the scope.
 
-When PushNav starts, you'll see a brief loading screen, then the main window with a live camera feed on the left and a step-by-step panel on the right. The panel walks you through alignment. No prior experience needed.
+When PushNav starts, you'll see a brief loading screen, then the main window with a live camera feed on the left (or the camera-not-connected placeholder) and a step-by-step panel on the right. The panel walks you through alignment. No prior experience needed.
 
 ## Phone companion
 

@@ -41,6 +41,12 @@ This system acts as a real-time electronic encoder replacement using plate solvi
 - No frame buffering beyond latest frame.
 - Optional star overlay (detected + matched centroids), drawn in SVG.
 - Optional zoom slider for preview.
+- A camera is **not** required at startup. If none is connected, the
+  engine and all three TCP servers come up normally; the live-view area
+  shows a "Camera not connected" placeholder with a Retry control; the
+  solver thread doesn't start until a camera is actually connected.
+  This keeps Settings, Connectivity, and the What to See catalog usable
+  for offline planning.
 
 ### Camera Controls
 - Exposure (absolute)
