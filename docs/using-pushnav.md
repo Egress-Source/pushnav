@@ -48,14 +48,18 @@ As you push the telescope, the numbers shrink live. When they get close to zero,
 
 ## The Sky View dome
 
-The right side of the wizard always shows a small interactive **Sky View** — a 3D hemisphere with cardinal directions and a horizon. Up to two markers can appear on it:
+The wizard's right column shows a small interactive **Sky View**, a 3D hemispheric dome with cardinal directions, a horizon, and up to two markers (where the scope is currently pointing, where the active target sits).
 
-- A **yellow dot** with a semi-transparent red telescope cylinder along its line: where the scope is currently pointing.
-- A **cream dot** with the target's name floating above it: where the active GOTO target sits.
+This is *spatial orientation*, not a planetarium. You can't browse the sky in it, you can't search for targets, you won't see deep-sky labels or constellation lines. The dome answers exactly one question: *is my target up and to the right, or down and to the left, relative to where I'm currently aimed?* Anything more than that (star fields, DSO catalogs, magnitude limits) already lives in Stellarium / SkySafari / Stellarium Mobile, which do that work far better than PushNav could on its own.
+
+The two markers:
+
+- A **yellow dot** with a semi-transparent red telescope cylinder along its line, where the scope is currently pointing.
+- A **cream dot** with the target's name floating above it, where the active GOTO target sits.
 
 A **solid red line** runs from the centre of the hemisphere to the target marker, and a **dashed red line** runs to the pointing marker. Together they make it easy to read, at a glance, whether the target is east or west of where you're aimed, higher or lower in the sky, and how far off you are.
 
-Drag the dome to orbit, scroll to zoom. The view is purely for spatial orientation — it doesn't show stars or DSOs (planetarium apps do that better). It stays visible during every phase: setup, sync, roll calibration, and tracking — so you always have a sky-relative picture of where you and the target are.
+Drag the dome to orbit, scroll to zoom. It stays visible during every phase (setup, sync, roll calibration, and tracking), so you always have a sky-relative picture of where you and the target are.
 
 A couple of edge cases the dome handles:
 
@@ -73,19 +77,17 @@ You don't need to keep looking at your laptop while pushing. Open PushNav's **Se
 
 ## Picking targets inside PushNav
 
-You don't have to switch back to Stellarium or SkySafari every time you want a new target — PushNav has its own **"What to See"** tab right in the app. Use the segmented control at the top of the window to switch between Navigation and What to See. There are three ways to find a target:
+For target picking, PushNav doesn't make you choose between simplicity and reach. The built-in **What to See** tab gives you both side by side.
 
-**Buddy.** A curated list of 161 hand-picked deep-sky objects. Filter by equipment (binoculars / small scope / large scope), light-pollution tolerance, and visual reward. Each entry carries a short observing note. Best for new observers — pick something tagged "beginner" and "high reward" on a moonless night and you can't really go wrong.
+- **Buddy** — 161 hand-picked deep-sky objects with filters for equipment, light pollution and visual reward. The "what should I look at tonight?" answer for a new observer who doesn't know the sky yet.
+- **Advanced** — fuzzy search across **12,522 NGC objects** (OpenNGC) and **8,825 bright stars** (HYG). The "give me M81" answer when you already know what you want.
+- **Manual coordinates** — RA/Dec entry for the rest: comets, asteroids, satellites, anything ephemeris-driven that no catalog covers.
 
 ![PushNav Buddy catalog tab](assets/pushnav.0.2.0-sgb.png)
 
-**Advanced.** A fuzzy search across **12,522 NGC objects** (OpenNGC) and **8,825 bright stars** (HYG). Type any name or designation — `M31`, `Andromeda`, `NGC 224`, `Sirius`, `Vega`, `α Lyr` — and you'll see scored matches sorted by brightness. Use this when you know what you want, or when you're hunting fainter objects than the curated Buddy list covers.
-
 ![PushNav Advanced catalog tab](assets/pushnav.0.2.0-advanced.png)
 
-**Manual coordinates.** Inside the Advanced sub-tab there's a small panel for entering RA and Dec directly. Six fields (hours / minutes / seconds for RA, degrees / arcminutes / arcseconds for Dec, plus a `+` / `−` toggle on the Dec sign) — useful for transient events (comets, asteroids, satellites) where coordinates come from an ephemeris or a paper note, not a catalog.
-
-For every match, the right side of the tab shows a detail card with the object's current altitude / azimuth, rise / transit / set times, and a **Set as target** button. Click it and PushNav jumps back to the Navigation tab with the chosen target loaded. The button is disabled when an object is below the horizon — no point pushing through the ground.
+For every match, the right side of the tab shows a detail card with the object's current altitude / azimuth, rise / transit / set times, and a **Set as target** button. Click it and PushNav jumps back to the Navigation tab with the chosen target loaded. The button is disabled when an object is below the horizon (no point pushing through the ground).
 
 !!! tip "Set your location first"
     Visibility math needs to know where you're observing from. Open the **Location** panel in the right column and enter your latitude and longitude (or let Stellarium provide it automatically when connected). Without a location, the catalog still works as a directory, but the alt/az and rise/set columns stay blank and the below-horizon guard can't run.
