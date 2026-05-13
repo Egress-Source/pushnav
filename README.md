@@ -2,7 +2,15 @@
 
 ![Status](https://img.shields.io/badge/status-🚧%20Work%20in%20Progress-yellow)
 
-A cross-platform plate-solving push-to system for manual telescopes. PushNav uses a live camera feed to continuously plate-solve and determine where your telescope is pointing, reporting coordinates to **Stellarium** on the desktop and to **SkySafari**, **Stellarium Mobile**, **INDI**, or **ASCOM** clients over Wi-Fi in real-time. No encoders, no motors, no GOTO mount required.
+**A cross-platform plate-solving push-to system for manual telescopes.** Add push-to navigation to a manual scope for about **$50** in hardware you can order today.
+
+**Three things, that's all:**
+
+1. **Your laptop** — macOS, Linux, or Windows. Runs on hardware you already own.
+2. **USB camera + lens** — about **$41 total**. A [Waveshare OV9281](https://www.waveshare.com/ov9281-1mp-usb-camera-a.htm) (~$26) plus a [25mm F2.4 M12 lens](https://www.seeedstudio.com/5MP-25mm-lens-p-5579.html) (~$15). See [Camera & Lens](docs/hardware.md) for details.
+3. **Any manual telescope** — Dobsonian, manual EQ, or any push-around mount. No GOTO, no motors, no encoders.
+
+PushNav uses a live camera feed to continuously plate-solve and determine where your telescope is pointing, reporting coordinates to **Stellarium** on the desktop and to **SkySafari**, **Stellarium Mobile**, **INDI**, or **ASCOM** clients over Wi-Fi in real time. Audio cues for lock, lost, and target alerts let you stay at the eyepiece without watching the screen.
 
 Don't have a planetarium app, or don't want to switch between two screens? PushNav can run completely standalone. Pick targets from its built-in **What to See** catalog (a curated short-list of 161 hand-picked objects, a search across more than 20,000 stars and deep-sky objects, or a manual RA/Dec panel), follow the push direction, and watch your scope's pointing on the on-screen **Sky View** dome. No other software required.
 
@@ -29,6 +37,18 @@ Pick a target either inside PushNav or from any planetarium app you already use.
 ![PushNav tracking M42 across Stellarium and SkySafari](docs/assets/pushnav_ops.png)
 
 Above: **M42 (Orion Nebula)** is the active target on both **Stellarium** (desktop) and **SkySafari** (phone). As the scope is pushed, each plate-solve updates the telescope crosshair on every connected client simultaneously. No mount control, no GoTo motors. Just a camera and Wi-Fi.
+
+## Who is PushNav for?
+
+PushNav is probably a good fit if most of these describe you:
+
+- You own a **manual telescope** — Dobsonian, manual EQ, or any push-around mount with no GOTO motors or encoders.
+- You have a **laptop** (macOS, Linux, or Windows) and you don't mind leaving it on a table or chair while you observe.
+- You'd like to add push-to navigation to that scope for around **$50**, not the **$300+** that comparable products typically cost.
+- You observe from **light-polluted skies** where star-hopping is hard, and want a faster way to land on faint targets.
+- You're OK with a **brief one-time calibration** at the start of each session (it takes under a minute after the first run).
+
+If you already have a GOTO mount, or you want a phone-only experience with no laptop on hand, PushNav isn't the right tool — there are better-fitted products for those cases.
 
 ## Cross platform from the ground up
 

@@ -6,14 +6,20 @@ description: Cross-platform plate-solving push-to system for manual telescopes
 # PushNav
 Plate-Solving Push-To System for Manual Telescopes
 
-A cross-platform plate-solving push-to system for manual telescopes. PushNav uses a live camera feed to continuously plate-solve and determine where your telescope is pointing, reporting coordinates to Stellarium, SkySafari, and other planetarium apps in real-time. No encoders, no motors, no GOTO mount required. Just a USB camera, a lens, and your laptop. Under **$50** in total hardware.
+![PushNav Mounted](assets/mounted.jpeg)
+
+**A cross-platform plate-solving push-to system for manual telescopes.** Add push-to navigation to a manual scope for about **$50** in hardware you can order today.
+
+| Your laptop | USB camera + lens | Any manual telescope |
+|:---|:---|:---|
+| macOS, Linux, or Windows. Runs on hardware you already own. | A specific **$41 combo**. A [Waveshare OV9281](https://www.waveshare.com/ov9281-1mp-usb-camera-a.htm) (~$26) plus a [25mm F2.4 M12 lens](https://www.seeedstudio.com/5MP-25mm-lens-p-5579.html) (~$15). [Full BOM →](hardware.md) | Dobsonian, manual EQ, or any push-around mount. No GOTO, no motors, no encoders. |
+
+PushNav uses a live camera feed to continuously plate-solve and determine where your telescope is pointing, reporting coordinates to Stellarium, SkySafari, and other planetarium apps in real time. Audio cues for lock, lost, and target alerts let you stay at the eyepiece without watching the screen.
 
 Don't have a planetarium app, or don't want to switch between two screens? PushNav can run completely standalone. Pick targets from its built-in **What to See** catalog (a curated short-list of 161 hand-picked objects, a search across more than 20,000 stars and deep-sky objects, or a manual RA/Dec panel), follow the push direction, and watch your scope's pointing on the on-screen **Sky View** dome. No other software required.
 
 !!! info "What is plate-solving?"
     Any part of the night sky has a unique arrangement of stars. Plate-solving is a technique that takes a photo, matches that arrangement against a catalog, and reports exactly where the camera is pointing, down to a fraction of a degree. PushNav runs it continuously on the live camera feed, so the app always knows where your telescope is aimed.
-
-![PushNav Mounted](assets/mounted.jpeg)
 
 PushNav uses the European Space Agency's (ESA) [tetra3](https://github.com/esa/tetra3) fast lost-in-space plate solver, the same algorithm family that powers spacecraft navigation. This efficient solver produces near real-time solutions on a live video feed, enabling seamless push-to navigation even in light-polluted urban skies.
 
@@ -28,6 +34,22 @@ Pick a target either inside PushNav or from any planetarium app you already use.
 ![PushNav tracking M42 across Stellarium and SkySafari](assets/pushnav_ops.png)
 
 Above: **M42 (Orion Nebula)** is the active target on both **Stellarium** (desktop) and **SkySafari** (phone). As the scope is pushed, each plate-solve updates the telescope crosshair on every connected client simultaneously. No mount control, no GoTo motors. Just a camera and Wi-Fi.
+
+## Who is PushNav for?
+
+PushNav is probably a good fit if most of these describe you:
+
+- You own a **manual telescope** — Dobsonian, manual EQ, or any push-around mount with no GOTO motors or encoders.
+- You have a **laptop** (macOS, Linux, or Windows) and you don't mind leaving it on a table or chair while you observe.
+- You'd like to add push-to navigation to that scope for around **$50**, not the **$300+** that comparable products typically cost.
+- You observe from **light-polluted skies** where star-hopping is hard, and want a faster way to land on faint targets.
+- You're OK with a **brief one-time calibration** at the start of each session (it takes under a minute after the first run).
+
+![A single PushNav frame captured from Bortle 8.5 Chennai showing M45 clearly](assets/single_frame_bortle8.png){ width="70%" }
+
+*Above: M45 (Pleiades) captured in a single PushNav frame from **Bortle 8.5** Chennai, India. Invisible to the naked eye here, but clear on the sensor. Plate-solving works in heavy light pollution, not just dark skies.*
+
+If you already have a GOTO mount, or you want a phone-only experience with no laptop on hand, PushNav isn't the right tool — there are better-fitted products for those cases.
 
 ## Cross platform from the ground up
 
