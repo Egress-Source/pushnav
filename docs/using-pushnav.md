@@ -26,7 +26,7 @@ The first time you use PushNav, you'll go through all four steps:
 !!! tip "Center in the eyepiece, not the camera"
     A common first-time mistake: centering the star in the *camera preview* on your laptop screen. That's the wrong reference. The camera is offset from the main optics. What matters is that the star is centered in your **eyepiece view** (what you see looking through the telescope). PushNav figures out the offset between the camera and your eyepiece during sync.
 
-**Step 3. Roll.** PushNav needs to know how the camera is rotated relative to your telescope's axes. It will ask you to **push the telescope up** (increase altitude) for a moment. As you push, PushNav watches the stars move across the camera frame and calculates the rotation angle. This happens automatically; you'll see a progress indicator, and it completes in a few seconds.
+**Step 3. Roll.** PushNav needs to know how the camera is rotated relative to your telescope's axes. It will ask you to **push the telescope up** (increase altitude) for a moment. By watching which direction the stars actually move when you push, PushNav learns the angle between the camera's reference frame and your telescope's axes. That's what keeps the push arrows accurate even if the camera is mounted at an angle. This happens automatically; you'll see a progress indicator, and it completes in a few seconds.
 
 **Step 4. Track.** You're live. PushNav is continuously plate-solving the camera feed. Your telescope's position updates in real time on the on-screen **Sky View** dome, and is broadcast to any connected planetarium app (Stellarium, SkySafari, Stellarium Mobile, INDI, ASCOM) so their charts stay in sync.
 
@@ -87,9 +87,11 @@ A couple of edge cases the dome handles:
 
 ## Using the mobile companion
 
-You don't need to keep looking at your laptop while pushing. Open PushNav's **Settings** panel, scan the **QR code** with your phone, and you'll get a live mobile view showing the same push direction and target info, right in your hand at the eyepiece.
+When you're pushing a Dobsonian or a manual EQ, the laptop typically sits on a chair or table a few feet from the eyepiece. Walking back and forth to check the push direction gets old fast. PushNav's mobile companion solves that. Open the **Settings** panel, scan the **QR code** with your phone, and a live view opens in your phone's browser showing the same push direction, target name, and separation as the desktop UI.
 
 ![PushNav mobile companion view](assets/pushnav.0.2.0-mobile.png){ width="50%" }
+
+No app to install, no Bluetooth pairing, no configuration. Your phone and laptop only need to be on the same Wi-Fi network. Multiple devices can connect at the same time too, so for outreach sessions or sharing the view with someone, just hand them their own phone and they'll see exactly what you see.
 
 !!! tip "Prefer SkySafari or Stellarium Mobile?"
     PushNav also speaks the LX200 telescope protocol, so you can pick targets and see your scope's crosshair directly in **SkySafari**, **Stellarium Mobile PLUS**, **INDI** (KStars/Ekos), or **ASCOM** clients. See [SkySafari & Other Apps](skysafari-setup.md) for the one-time setup.
@@ -102,11 +104,29 @@ The camera sits in a finder shoe on the side of your telescope tube. Because of 
 
 This is exactly what **Step 3 (Roll)** corrects. After calibration, PushNav's arrows accurately reflect the directions you need to push, even if the camera is mounted at an odd angle. Just follow the arrows and trust the numbers; they account for the rotation.
 
-If the directions ever feel wrong (e.g. after bumping the camera), just restart PushNav's setup (press **Stop tracking and restart setup**) and redo the sync and roll calibration. It takes less than a minute.
+If the directions ever feel wrong (for example, after you've remounted the camera between sessions or moved the telescope to a different site), just restart PushNav's setup (press **Stop tracking and restart setup**) and redo the sync and roll calibration. It takes less than a minute.
 
 ## Tips for a good session
 
-- **Use a higher-magnification eyepiece for sync.** The more precisely you center the sync star, the more accurate the push-to guidance will be.
-- **Don't touch the camera after sync.** If the camera shifts on the telescope (loose finder shoe, bumped cable), the calibration is off. PushNav will still track, but the push directions will be wrong. Redo sync if this happens.
+- **If you have a higher-magnification eyepiece, use it for sync.** The more precisely you center the sync star, the more accurate the push-to guidance will be. The default 25 mm eyepiece that ships with most scopes works fine; you'll just trade a little pointing precision.
 - **Watch out for below-horizon targets.** PushNav's own **What to See** tab disables the **Set as target** button for objects below the horizon (and shows a "Below horizon" hint), but only when you've set a location. So set your location first. Targets coming in from external apps (Stellarium, SkySafari, INDI, ASCOM) can't be guarded the same way; if you send one of those that's below the horizon, the arrows will try to push you through the ground.
 - **Bright targets first.** For your first session, pick easy bright targets like the Orion Nebula, the Pleiades, or a bright double star. Once you're confident the system is working, go after fainter objects.
+
+## When something goes wrong
+
+A few common scenarios and what to do.
+
+**Plate-solving fails repeatedly (clouds drifting in, dew on the lens, heavy haze).**
+PushNav holds your last good position and shows a rising failure count in the side panel. Once stars are visible again, solves resume on their own. There's nothing to restart.
+
+**The camera disconnects (USB cable wiggle, computer sleep).**
+PushNav notices within a couple of seconds and tries to reconnect automatically with exponential backoff (1, 2, 4, 8, 15 seconds, up to 5 attempts). Plug the cable back in firmly and tracking picks up where it left off. If the retries exhaust, the app shows an error state and you'll need to relaunch PushNav.
+
+**You send a below-horizon target from Stellarium (or another planetarium app).**
+External apps don't enforce the horizon check, so the push arrows will try to point you through the ground. Clear the target and pick something currently above the horizon. PushNav's own **What to See** tab disables the **Set as target** button for below-horizon objects when a location is set.
+
+**Push direction feels wrong even after calibration.**
+You probably need to redo Step 3 (Roll). Most likely you've remounted the camera since the last session, or the scope is on a different site or different mount. Press **Stop tracking and restart setup** and run through the wizard again. It takes under a minute.
+
+**The Sky View dome shows "Location info required" and the catalog dates look blank.**
+PushNav doesn't have an observer location yet. Open the **Location** panel in the right column of the **What to See** tab and enter your latitude and longitude, or let Stellarium provide it automatically when connected.
