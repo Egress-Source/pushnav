@@ -33,6 +33,7 @@ class CaptureManager: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
     private let jpegLock = NSLock()
     private var _latestJPEG: Data?
     private var ciContext: CIContext?
+    private var activeDevice: AVCaptureDevice?
     var onFrame: ((Data) -> Void)?
 
     /// Thread-safe access to the latest JPEG frame.
@@ -79,14 +80,57 @@ class CaptureManager: NSObject, AVCaptureVideoDataOutputSampleBufferDelegate {
         session.addOutput(output)
 
         session.commitConfiguration()
+
+        // Observe disconnect / runtime error / interruption so a yanked USB
+        // cable causes us to exit. The parent process (PushNav engine)
+        // watches our TCP socket; when we exit it spawns a fresh server.
+        activeDevice = camera
+        let nc = NotificationCenter.default
+        nc.addObserver(
+            self,
+            selector: #selector(handleDeviceDisconnected(_:)),
+            name: NSNotification.Name.AVCaptureDeviceWasDisconnected,
+            object: camera)
+        nc.addObserver(
+            self,
+            selector: #selector(handleSessionRuntimeError(_:)),
+            name: NSNotification.Name.AVCaptureSessionRuntimeError,
+            object: session)
+        nc.addObserver(
+            self,
+            selector: #selector(handleSessionInterrupted(_:)),
+            name: NSNotification.Name.AVCaptureSessionWasInterrupted,
+            object: session)
+
         session.startRunning()
         print("Capture session started")
         return true
     }
 
     func stop() {
+        NotificationCenter.default.removeObserver(self)
         session.stopRunning()
         print("Capture session stopped")
+    }
+
+    @objc private func handleDeviceDisconnected(_ notification: Notification) {
+        fputs("ERROR: Camera device disconnected, exiting\n", stderr)
+        exit(1)
+    }
+
+    @objc private func handleSessionRuntimeError(_ notification: Notification) {
+        let error = notification.userInfo?[AVCaptureSessionErrorKey] as? NSError
+        let msg = error.map { "\($0.domain) code=\($0.code) — \($0.localizedDescription)" }
+            ?? "unknown error"
+        fputs("ERROR: Capture session runtime error: \(msg), exiting\n", stderr)
+        exit(1)
+    }
+
+    @objc private func handleSessionInterrupted(_ notification: Notification) {
+        // AVCaptureSessionInterruptionReasonKey is iOS-only; on macOS the
+        // notification fires without a reason field.
+        fputs("ERROR: Capture session interrupted, exiting\n", stderr)
+        exit(1)
     }
 
     // MARK: - AVCaptureVideoDataOutputSampleBufferDelegate

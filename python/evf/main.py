@@ -20,240 +20,184 @@
 Per impl0.md §8.6.
 """
 
+import json
 import logging
+import os
+import signal
+import socket
 import sys
+import threading
+import urllib.error
+import urllib.request
 
-import dearpygui.dearpygui as dpg
-
+from evf.config.manager import ConfigManager
 from evf.engine.engine import Engine
-from evf.ui.window import UI
 
 logger = logging.getLogger(__name__)
 
-_VP_WIDTH = 1280 // 2 + 320  # 960 — content width only
-_VP_HEIGHT = 720 // 2 + 60  # 420
-_CHROME_BUFFER = 60  # Windows chrome + side-panel padding; does not scale with DPI
+# Window dimensions sized to the React UI's `max-w-5xl` (1024px) layout
+# plus minimal padding. The window is non-resizable (see `resizable=False`
+# in create_window below) so the layout never has to deal with arbitrary
+# aspect ratios — the dome, controls and panels are all designed around
+# this single size.
+# Each platform's webview (WKWebView / WebKit2GTK / WebView2) handles HiDPI
+# scaling natively against its OS's DPI/scale settings — no app-side multiplier.
+_VP_WIDTH = 1060
+_VP_HEIGHT = 820
 
 
-def _windows_disable_maximize_button(title: str) -> None:
-    """Strip the maximize-box window style from our viewport on Windows.
+def _vite_running(port: int = 5173) -> bool:
+    """True if **PushNav's** Vite dev server is reachable on localhost:`port`.
 
-    `resizable=False` greys out the maximize button but leaves it clickable
-    (and Windows 11 still shows snap layouts on hover). This actually hides
-    it via SetWindowLong + SetWindowPos(SWP_FRAMECHANGED). Best-effort —
-    silently no-ops if the window isn't found or a Win32 call fails.
+    A bare TCP probe isn't enough (the port can be squatted on — macOS uses
+    5000 for AirPlay Receiver, for instance) and a generic Vite marker
+    like `/@vite/client` would also succeed against an *unrelated* Vite
+    running someone else's project. Probe a PushNav-specific public asset
+    instead: `web/public/inapp-title.png` is served at
+    `/static/inapp-title.png` because of `vite.config.ts`'s
+    `base: "/static/"`. A foreign Vite (default base `"/"`) 404s the path
+    so we correctly fall through to the prod URL on :8765.
     """
-    if sys.platform != "win32":
-        return
+    # Use `localhost` (not 127.0.0.1) so the OS resolver tries both ::1 and
+    # 127.0.0.1 — Vite on macOS binds IPv6-only by default, while other
+    # platforms or `--host` bind IPv4. urllib walks the address list until
+    # one succeeds, so a single probe covers both families.
     try:
-        import ctypes
-        from ctypes import wintypes
+        with urllib.request.urlopen(
+            f"http://localhost:{port}/static/inapp-title.png", timeout=0.3
+        ) as r:
+            return r.status == 200
+    except (urllib.error.URLError, OSError, TimeoutError):
+        return False
 
-        GWL_STYLE = -16
-        WS_MAXIMIZEBOX = 0x00010000
-        SWP_NOMOVE = 0x0002
-        SWP_NOSIZE = 0x0001
-        SWP_NOZORDER = 0x0004
-        SWP_FRAMECHANGED = 0x0020
 
-        user32 = ctypes.windll.user32
-        hwnd = user32.FindWindowW(None, title)
-        if not hwnd:
-            # Title exact-match failed; fall back to partial-match enum.
-            found = []
+def _check_single_instance(port: int) -> None:
+    """Exit cleanly if another PushNav (or anything) is already on `port`.
 
-            def _cb(h, _):
-                length = user32.GetWindowTextLengthW(h)
-                if length:
-                    buf = ctypes.create_unicode_buffer(length + 1)
-                    user32.GetWindowTextW(h, buf, length + 1)
-                    if "PushNav" in buf.value:
-                        found.append(h)
-                return True
+    Runs before any engine threads, port binds, or pywebview windows
+    open. Distinguishes "another PushNav" from "another app on the
+    port" by hitting our /api/version identifier endpoint, so the
+    error message can tell the user what to do.
+    """
+    # Fast TCP probe first — if the port is free, the slow HTTP probe
+    # would just time out. Use 127.0.0.1 explicitly: webserver binds
+    # 0.0.0.0 so this always reaches our listener if any.
+    try:
+        with socket.create_connection(("127.0.0.1", port), timeout=0.3):
+            pass  # something is bound
+    except OSError:
+        return  # port free, fine to start
 
-            proc = ctypes.WINFUNCTYPE(
-                wintypes.BOOL, wintypes.HWND, wintypes.LPARAM
-            )(_cb)
-            user32.EnumWindows(proc, 0)
-            if not found:
-                return
-            hwnd = found[0]
-
-        style = user32.GetWindowLongW(hwnd, GWL_STYLE)
-        user32.SetWindowLongW(hwnd, GWL_STYLE, style & ~WS_MAXIMIZEBOX)
-        user32.SetWindowPos(
-            hwnd, 0, 0, 0, 0, 0,
-            SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED,
-        )
-    except Exception:
+    # Port is busy. Identify the occupant.
+    is_pushnav = False
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/api/version", timeout=0.5
+        ) as r:
+            if r.status == 200:
+                payload = json.loads(r.read(512))
+                is_pushnav = payload.get("app") == "pushnav"
+    except (urllib.error.URLError, OSError, TimeoutError, json.JSONDecodeError):
         pass
 
-
-def _windows_primary_monitor_scale() -> int:
-    """Return primary monitor's scale percentage (100, 125, 150, ...).
-
-    Uses GetScaleFactorForMonitor, which returns the user-configured scale
-    even for DPI-unaware processes (unlike GetDpiForMonitor, which
-    virtualizes to 96 in that mode). Returns 100 on non-Windows or on
-    failure.
-    """
-    if sys.platform != "win32":
-        return 100
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        MONITOR_DEFAULTTOPRIMARY = 1
-        hmon = ctypes.windll.user32.MonitorFromPoint(
-            wintypes.POINT(0, 0), MONITOR_DEFAULTTOPRIMARY
+    if is_pushnav:
+        msg = (
+            f"PushNav is already running on port {port}.\n"
+            f"Close the existing window before launching another instance."
         )
-        scale = ctypes.c_int(100)
-        if ctypes.windll.shcore.GetScaleFactorForMonitor(
-            hmon, ctypes.byref(scale)
-        ) != 0:
-            return 100
-        return int(scale.value)
-    except Exception:
-        return 100
+    else:
+        msg = (
+            f"Port {port} is in use by another application.\n"
+            f"Close it, or change webserver.port in your PushNav config "
+            f"(see logs for the config file location)."
+        )
+    print(msg, file=sys.stderr)
+    sys.exit(1)
 
 
 def main() -> None:
-    dev_mode = "--dev" in sys.argv
+    # PUSHNAV_DEBUG=1 / --dev toggles in-app dev features only (sample
+    # injection, frame capture, DebugPanel). Opening the webview's
+    # inspector is a separate opt-in via WEBVIEW_DEBUG=1: on Linux Qt,
+    # pywebview's debug=True starts QtWebEngine's remote-debugging server
+    # which truncates aiohttp static-file responses to ~440 bytes and
+    # leaves the React bundle unparseable, so we keep the inspector off
+    # by default even in dev_mode.
+    dev_mode = "--dev" in sys.argv or os.environ.get("PUSHNAV_DEBUG") == "1"
+    webview_debug = os.environ.get("WEBVIEW_DEBUG") == "1"
+    no_window = "--no-window" in sys.argv
+    # --react is now the default; accept the flag as a no-op for back-compat
+    _ = "--react" in sys.argv
 
-    # Engine owns the ConfigManager — create it first so we can read hidpi
-    engine = Engine()
+    # Single-instance guard. Reads config first (we need web_port for the
+    # probe) and reuses the same ConfigManager for the engine, so it isn't
+    # loaded twice from disk.
+    config = ConfigManager()
+    _check_single_instance(config.web_port)
 
-    # Auto-toggle 4K mode on Windows whenever the detected display scale
-    # changes (different monitor, docking, Windows scaling changed). Within a
-    # single scale, the user's checkbox choice is preserved.
-    if sys.platform == "win32":
-        current_scale = _windows_primary_monitor_scale()
-        if current_scale != engine.config.hidpi_last_scale:
-            should_hidpi = current_scale >= 150
-            if engine.config.hidpi != should_hidpi:
-                engine.config.hidpi = should_hidpi
-                logger.info(
-                    "Auto-%s 4K mode for %d%% display scale",
-                    "enabled" if should_hidpi else "disabled",
-                    current_scale,
-                )
-            engine.config.hidpi_last_scale = current_scale
+    engine = Engine(dev_mode=dev_mode, config=config)
 
-    vp_scale = 2 if engine.config.hidpi else 1
+    # Engine + servers come up either way
+    engine.startup_logging()
+    engine.startup_solver()
+    engine.startup_stellarium()
+    engine.startup_lx200()
+    engine.startup_webserver()
+    engine.startup_camera()
+    if engine.camera_connected:
+        engine.startup_solver_thread()
 
-    # Create DPG context and full-size viewport
-    dpg.create_context()
-    dpg.configure_app(manual_callback_management=True)
-    dpg.create_viewport(
-        title=f"PushNav {engine.app_version} - Plate-Solving Push-To System",
-        width=int(_VP_WIDTH * vp_scale) + _CHROME_BUFFER,
-        height=int(_VP_HEIGHT * vp_scale),
+    if no_window:
+        logger.info("Running headless (--no-window). Press Ctrl-C to exit.")
+        stop = threading.Event()
+        signal.signal(signal.SIGINT, lambda *_: stop.set())
+        signal.signal(signal.SIGTERM, lambda *_: stop.set())
+        stop.wait()
+        engine.shutdown()
+        return
+
+    # Default: open pywebview window pointing at the React UI
+    import webview
+
+    # Use Vite's HMR server when it's actually running; otherwise serve the
+    # prebuilt bundle through the in-process aiohttp server. The prod URL
+    # is built from engine.config.web_port (single source of truth) so a
+    # user-customized port keeps the navigation URL and the bound webserver
+    # in sync — and old config files carried over from earlier installs
+    # don't desync the two sides.
+    web_port = engine.config.web_port
+    # Append a per-launch cache-buster to the entry URL. WKWebView keeps a
+    # persistent HTTP cache under ~/Library/Caches/com.pushnav.evf and
+    # aiohttp's FileResponse sends no Cache-Control, so heuristic freshness
+    # can keep serving a stale index.html past Cmd-Q + restart and the
+    # webview keeps booting an old JS bundle. A unique query per launch
+    # makes the URL miss any prior cache entry.
+    import time as _time
+    cache_buster = f"?v={int(_time.time())}"
+    target_url = (
+        f"http://localhost:5173{cache_buster}" if _vite_running()
+        else f"http://localhost:{web_port}/{cache_buster}"
+    )
+    title = f"PushNav {engine.app_version}"
+
+    webview.create_window(
+        title,
+        target_url,
+        width=_VP_WIDTH,
+        height=_VP_HEIGHT,
         resizable=False,
     )
-
-    ui = UI(
-        engine.frame_buffer,
-        engine.pointing_state,
-        engine.state_machine,
-        engine.config,
-        dev_mode=dev_mode,
-    )
-    ui.setup()
-
-    dpg.setup_dearpygui()
-    dpg.show_viewport()
-
-    # Render one frame so Windows has actually created the HWND before we
-    # reach for it via FindWindowW / EnumWindows.
-    dpg.render_dearpygui_frame()
-    _windows_disable_maximize_button(
-        f"PushNav {engine.app_version} - Plate-Solving Push-To System"
-    )
-
-    ui.update_splash("Initializing...")
-    engine.startup_logging()
-
-    ui.update_splash("Loading star database...")
-    engine.startup_solver()
-
-    ui.update_splash("Starting Stellarium server...")
-    engine.startup_stellarium()
-
-    ui.update_splash("Starting LX200 server...")
-    engine.startup_lx200()
-
-    ui.update_splash("Starting web server...")
-    engine.startup_webserver()
-
-    ui.update_splash("Connecting to camera...")
-    engine.startup_camera()
-
-    if not engine.camera_connected:
-        ui.destroy_splash()
-        should_exit = False
-
-        def _set_exit():
-            nonlocal should_exit
-            should_exit = True
-
-        ui.show_error_modal("Camera not found", on_close=_set_exit)
-
-        while not should_exit:
-            jobs = dpg.get_callback_queue()
-            dpg.run_callbacks(jobs)
-            dpg.render_dearpygui_frame()
-        dpg.destroy_context()
-        sys.exit(1)
-
-    ui.update_splash("Preparing solver...")
-    engine.startup_solver_thread()
-
-    ui.set_on_step_advance(engine.step_advance)
-    ui.set_on_set_control(engine.set_control)
-    ui.set_failure_source(lambda: engine.consecutive_failures)
-    ui.set_on_sync_retry(engine.sync_retry)
-    ui.set_sync_select(engine.set_sync_selected)
-    ui.set_sync_source(
-        candidates=lambda: engine.sync_candidates,
-        selected=lambda: engine.sync_selected_idx,
-        in_progress=lambda: engine.sync_in_progress,
-        error=lambda: engine.sync_error,
-    )
-
-    ui.set_on_use_prev_calibration(engine.use_previous_calibration)
-    ui.set_on_audio_change(lambda v: setattr(engine, 'audio_enabled', v))
-    if dev_mode:
-        ui.set_on_inject_target(engine.goto_target.set)
-    ui.set_navigation_source(
-        goto_target=lambda: engine.goto_target.read(),
-        on_clear=engine.clear_goto_target,
-    )
-    ui.set_stellarium_source(
-        status=lambda: engine.stellarium_status,
-        obj=lambda: engine.stellarium_object,
-    )
-    ui.set_telescope_activity_source(
-        stellarium_active=lambda: engine.stellarium_has_client,
-        lx200_active=lambda: engine.lx200_active,
-    )
-
-    ui.destroy_splash()
-    ui.set_audio_enabled(engine.audio_enabled)
-    ui.set_web_url(engine.web_url)
-    ui.set_lx200_address(
-        engine.lx200_address if engine.lx200_running else "Server not running"
-    )
-    if engine.stellarium_address:
-        ui.set_stellarium_address(engine.stellarium_address)
-    else:
-        ui.set_stellarium_address("Server not running")
-
-    # Provide initial camera controls if connected
-    controls = engine.camera_controls
-    if controls:
-        ui.update_controls(controls)
-
-    ui.run()  # DearPyGui event loop — blocks until window close
+    # On Linux, force pywebview's Qt backend (QtPy + PyQt6 + PyQt6-WebEngine,
+    # pulled in by the pywebview[qt] extra in pyproject.toml). Without this,
+    # pywebview probes GTK first and only falls through to Qt on ImportError —
+    # works either way, but `gui='qt'` skips the noisy GTK traceback in logs
+    # when PyGObject isn't installed (the supported state on Linux now).
+    # macOS uses Cocoa/WKWebView and Windows uses WebView2 (Edge Chromium);
+    # `gui=None` lets pywebview pick the platform-native backend there.
+    gui = "qt" if sys.platform.startswith("linux") else None
+    # private_mode=False is harmless on Cocoa/WebView2/QtWebEngine and was
+    # historically needed to keep localStorage alive on WebKit2GTK.
+    webview.start(gui=gui, debug=webview_debug, private_mode=False)
 
     engine.shutdown()
 

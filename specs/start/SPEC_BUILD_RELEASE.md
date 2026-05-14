@@ -45,7 +45,6 @@ pushnav/
   data/
     hip8_database.npz
     VERSION.json
-    fonts/
     sounds/
 
   marketing/          # logo, in-app title images
@@ -86,7 +85,7 @@ tetra3 = { path = "python/vendor/tetra3", editable = true }
 
 Uses `pyproject.toml` (hatchling build backend) with `uv` for dependency locking (`uv.lock`).
 
-Dependencies: dearpygui, Pillow, numpy, scipy, tetra3, playsound3, aiohttp, qrcode[pil], pyerfa (>=2.0.0, for LX200 J2000↔JNow precession)
+Dependencies: pywebview, Pillow, numpy, scipy, tetra3, playsound3, aiohttp, qrcode[pil], pyerfa (>=2.0.0, for LX200 J2000↔JNow precession). The React front-end (under `web/`) is built separately with Vite (Node deps from `web/package.json`) and bundled into the Nuitka output as a data dir.
 Dev dependencies: nuitka (>=4.0.2), pytest
 
 ---
@@ -117,11 +116,16 @@ scripts/build_mac.sh
 
 Key Nuitka flags:
 - `--standalone` (NOT `--onefile` — `.dist/` directory approach)
-- `--output-filename=evf` (binary name; macOS/Linux) or `evf.exe` (Windows)
+- `--output-filename=PushNav` (binary name; macOS/Linux) or `PushNav.exe`
+  (Windows). The binary name matches the app/bundle name on purpose:
+  macOS TCC reads it for the camera permission prompt, Windows Defender
+  Firewall reads it (alongside the version-info `ProductName`) for the
+  network prompt, and on Linux it keeps `ps`/`top` output legible.
 - `--include-package=erfa` (bundles the pyerfa C extension used by the LX200
   J2000↔JNow precession helpers)
-- `--include-package=` for `dearpygui`, `numpy`, `scipy`, `PIL`, `playsound3`, `tetra3`
-- Data files are NOT bundled via Nuitka — copied manually post-build
+- `--include-package=` for `numpy`, `scipy`, `PIL`, `playsound3`, `tetra3`, `webview`
+- `--include-data-dir=web/dist=web_dist` (or `data/web_dist` on Linux/Windows) bundles the React build
+- Other data files (database, sounds, fonts, marketing) are copied manually post-build
 
 ---
 
@@ -135,14 +139,14 @@ Expected `.app` layout:
 PushNav.app/
   Contents/
     MacOS/
-      evf                # Nuitka standalone dist (CFBundleExecutable)
+      PushNav            # Nuitka standalone dist (CFBundleExecutable)
       camera_server      # Swift binary
       ...                # Nuitka support files
     Resources/
       hip8_database.npz
       VERSION.json
-      fonts/
       sounds/
+      web_dist/
       marketing/
     Info.plist
 ```
@@ -230,7 +234,7 @@ Windows release:
 - `database_path()` — star database
 - `camera_binary_path()` — platform-specific camera server binary
 - `sounds_dir()` — audio files
-- `fonts_dir()` — font files
+- `web_dist_dir()` — built React UI (release-only; in dev served by Vite on :5173)
 - `title_image()` — in-app branding
 
 Detection heuristics:

@@ -20,6 +20,7 @@
 import logging
 import threading
 from dataclasses import dataclass
+from typing import Callable
 
 from evf.paths import sounds_dir
 
@@ -52,6 +53,12 @@ class GotoTarget:
         self._ra_j2000: float = 0.0
         self._dec_j2000: float = 0.0
         self._active: bool = False
+        self._on_change: list[Callable[[], None]] = []
+
+    def add_on_change(self, callback: Callable[[], None]) -> None:
+        """Register a callback fired after every set()/clear(). Used e.g. to
+        invalidate cached object metadata that's tied to the previous target."""
+        self._on_change.append(callback)
 
     def set(self, ra_j2000_deg: float, dec_j2000_deg: float) -> None:
         """Set a new GOTO target. Called by Stellarium server thread."""
@@ -59,6 +66,11 @@ class GotoTarget:
             self._ra_j2000 = ra_j2000_deg
             self._dec_j2000 = dec_j2000_deg
             self._active = True
+        for cb in self._on_change:
+            try:
+                cb()
+            except Exception as exc:
+                logger.debug("GotoTarget on_change callback failed: %s", exc)
         self._play_ack()
 
     @staticmethod
@@ -75,6 +87,11 @@ class GotoTarget:
         """Clear the current target."""
         with self._lock:
             self._active = False
+        for cb in self._on_change:
+            try:
+                cb()
+            except Exception as exc:
+                logger.debug("GotoTarget on_change callback failed: %s", exc)
 
     def read(self) -> GotoTargetSnapshot:
         """Return an immutable snapshot. Called by UI thread."""

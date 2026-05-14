@@ -21,10 +21,12 @@ Per SPEC_ARCHITECTURE.md and impl0.md §Phase 8.
 Central coordinator that owns the lifecycle of every subsystem.
 """
 
+import io
 import json
 import logging
 import threading
 import time
+from pathlib import Path
 
 from evf.camera.subprocess_mgr import SubprocessManager
 from evf.config.logging_setup import setup_logging
@@ -33,6 +35,7 @@ from evf.engine.audio import AudioAlert
 from evf.engine.frame_buffer import LatestFrame
 from evf.engine.goto_target import GotoTarget
 from evf.engine.pointing import PointingState
+from evf.engine.sample_injector import SampleInjector
 from evf.engine.state import EngineState, StateMachine
 from evf.solver.solver import PlateSolver
 import numpy as np
@@ -78,14 +81,23 @@ class Engine:
     calls back into the engine for tracking toggle and camera control changes.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        *,
+        dev_mode: bool = False,
+        config: ConfigManager | None = None,
+    ) -> None:
         # Shared data structures
         self._frame_buffer = LatestFrame()
         self._pointing_state = PointingState()
         self._state_machine = StateMachine()
-        self._config = ConfigManager()
+        self._config = config if config is not None else ConfigManager()
         self._goto_target = GotoTarget()
         self._app_version = _read_app_version()
+        self._dev_mode = dev_mode
+
+        # Sample injector (continuous JPEG injection for dev/debug)
+        self._sample_injector = SampleInjector(self._frame_buffer)
 
         # Components (created during startup)
         self._solver: PlateSolver | None = None
@@ -128,6 +140,14 @@ class Engine:
         return self._app_version
 
     @property
+    def dev_mode(self) -> bool:
+        return self._dev_mode
+
+    @property
+    def sample_injector(self) -> SampleInjector:
+        return self._sample_injector
+
+    @property
     def camera_connected(self) -> bool:
         """True if the camera subprocess is running and connected."""
         return self._subprocess_mgr is not None and self._subprocess_mgr.running
@@ -161,6 +181,106 @@ class Engine:
 
     def clear_goto_target(self) -> None:
         self._goto_target.clear()
+
+    def set_goto_target(self, ra_deg: float, dec_deg: float) -> None:
+        """Set the GOTO target. Used by the catalog 'Set as target' flow."""
+        self._goto_target.set(float(ra_deg), float(dec_deg))
+
+    def set_audio_enabled(self, enabled: bool) -> None:
+        self.audio_enabled = enabled
+
+    @property
+    def location(self) -> dict:
+        """Resolve the active observer location.
+
+        Priority:
+          1. Stellarium status 'location' field, when a Stellarium client is
+             actively reporting one (source='stellarium').
+          2. ConfigManager.location, when manually set (source='manual').
+          3. None — neither available (source=None, lat/lon both None).
+        """
+        if self._stellarium is not None:
+            status = self._stellarium.stellarium_status
+            if status:
+                loc = status.get("location") if isinstance(status, dict) else None
+                if loc and loc.get("latitude") is not None and loc.get("longitude") is not None:
+                    return {
+                        "latitude": float(loc["latitude"]),
+                        "longitude": float(loc["longitude"]),
+                        "source": "stellarium",
+                    }
+        manual = self._config.location
+        if manual is not None:
+            return {
+                "latitude": manual[0],
+                "longitude": manual[1],
+                "source": "manual",
+            }
+        return {"latitude": None, "longitude": None, "source": None}
+
+    def set_location(self, latitude: float | None, longitude: float | None) -> None:
+        """Persist a manual location. Pass (None, None) to clear."""
+        if latitude is None or longitude is None:
+            self._config.location = None
+        else:
+            self._config.location = (float(latitude), float(longitude))
+
+    def inject_sample(self, name: str | None) -> None:
+        """Start/stop continuous injection of a sample image (dev only).
+
+        name: one of {"a","b","c","d","orion"} or None to stop.
+        """
+        from evf.paths import samples_dir
+        from evf.engine.sample_injector import load_sample_jpeg
+
+        if not self._dev_mode:
+            logger.warning("inject_sample called outside dev_mode — ignoring")
+            return
+        if name is None:
+            self._sample_injector.set_jpeg(None, None)
+            self._frame_buffer.clear()
+            logger.info("Sample injection stopped")
+            return
+        sd = samples_dir()
+        if sd is None:
+            logger.error("Samples directory not available in this build")
+            return
+        try:
+            jpeg = load_sample_jpeg(sd, name)
+            self._sample_injector.set_jpeg(jpeg, name)
+            logger.info("Sample injection started: %s.png", name)
+        except Exception as exc:
+            logger.error("Failed to load sample %s: %s", name, exc)
+
+    def inject_target(self, ra_deg: float, dec_deg: float) -> None:
+        """Set the GOTO target manually (dev only)."""
+        if not self._dev_mode:
+            logger.warning("inject_target called outside dev_mode — ignoring")
+            return
+        self._goto_target.set(ra_deg, dec_deg)
+        logger.info("Dev: injected GOTO target at RA %.4f° Dec %.4f°", ra_deg, dec_deg)
+
+    def capture_frame(self) -> Path | None:
+        """Save the latest frame to ~/Downloads as PNG. Returns the path or None."""
+        from datetime import datetime
+        from PIL import Image
+
+        jpeg, _ts, _fid = self._frame_buffer.get()
+        if jpeg is None:
+            return None
+        img = Image.open(io.BytesIO(jpeg)).convert("RGB")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        dest = Path.home() / "Downloads" / f"evf_capture_{timestamp}.png"
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        img.save(dest)
+        logger.info("Frame captured: %s", dest)
+        return dest
+
+    def set_min_matches(self, value: int) -> None:
+        self._config.min_matches = int(value)
+
+    def set_max_prob(self, value: float) -> None:
+        self._config.max_prob = float(value)
 
     @property
     def stellarium_status(self) -> dict | None:
@@ -286,7 +406,42 @@ class Engine:
                 self._state_machine,
                 self._goto_target,
                 self._config,
+                frame_buffer=self._frame_buffer,
                 stellarium_object=lambda: self.stellarium_object,
+                camera_controls=lambda: self.camera_controls,
+                sync_state=lambda: {
+                    "in_progress": self.sync_in_progress,
+                    "candidates": [
+                        {"idx": i, "name": f"Star #{i + 1}",
+                         "ra_deg": c.ra, "dec_deg": c.dec, "magnitude": c.mag,
+                         "pixel_x": c.x, "pixel_y": c.y}
+                        for i, c in enumerate(self.sync_candidates or [])
+                    ],
+                    "selected_idx": self.sync_selected_idx,
+                    "error": self.sync_error,
+                },
+                activity=lambda: {
+                    "stellarium": {
+                        "active": self.stellarium_has_client,
+                        "address": self.stellarium_address,
+                        "status": self.stellarium_status,
+                        "object": self.stellarium_object,
+                    },
+                    "lx200": {
+                        "active": self.lx200_active,
+                        "address": self.lx200_address,
+                    },
+                    "webserver": {"url": self.web_url},
+                    "audio_enabled": self.audio_enabled,
+                },
+                stellarium_location=lambda: (
+                    (self.stellarium_status or {}).get("location")
+                    if self.stellarium_status else None
+                ),
+                location=lambda: self.location,
+                dev_mode=self._dev_mode,
+                sample_active=lambda: self._sample_injector.active_name,
+                actions=self,
             )
             self._webserver.start()
         except Exception as exc:
@@ -341,6 +496,28 @@ class Engine:
             logger.error("Failed to start camera: %s", exc)
             self._subprocess_mgr = None
 
+    def retry_camera(self) -> bool:
+        """Re-attempt camera startup on demand (e.g. user just plugged it in).
+
+        Idempotent: if a camera is already connected, returns True without
+        doing anything. Otherwise drops any stale SubprocessManager,
+        re-runs startup_camera, and brings up the solver thread on success.
+        Same code path as the initial boot, so the platform-specific risk
+        surface (binary resolution, _kill_stale_server, Popen, handshake)
+        is identical to what already runs once at every launch.
+        Returns the post-attempt camera_connected state.
+        """
+        if self.camera_connected:
+            return True
+        # Drop the stale manager so startup_camera builds a fresh one;
+        # _kill_stale_server inside SubprocessManager._spawn_process will
+        # reap any orphaned camera_server left over from the prior failure.
+        self._subprocess_mgr = None
+        self.startup_camera()
+        if self.camera_connected and self._solver_thread is None:
+            self.startup_solver_thread()
+        return self.camera_connected
+
     def startup_solver_thread(self) -> None:
         """Create solver thread object (not started until user enables tracking)."""
         if self._solver:
@@ -370,6 +547,9 @@ class Engine:
 
         Only valid from SYNC state when config has saved calibration data.
         """
+        if not self.camera_connected:
+            logger.info("use_previous_calibration ignored — camera not connected")
+            return
         if self._state_machine.state != EngineState.SYNC:
             return
         if not self._config.has_calibration:
@@ -391,6 +571,13 @@ class Engine:
         """Advance the wizard: SETUP → SYNC → SYNC_CONFIRM → CALIBRATE → WARMING_UP, or stop."""
         state = self._state_machine.state
         logger.info("step_advance called, state=%s", state.value)
+        # Every forward step needs camera frames. Only the "stop tracking"
+        # branch (WARMING_UP/TRACKING → SETUP) works without a camera.
+        if not self.camera_connected and state not in (
+            EngineState.WARMING_UP, EngineState.TRACKING,
+        ):
+            logger.info("step_advance ignored — camera not connected")
+            return
         if state == EngineState.SETUP:
             self._state_machine.transition(EngineState.SYNC)
         elif state == EngineState.SYNC:
@@ -537,6 +724,12 @@ class Engine:
     def shutdown(self) -> None:
         """Graceful shutdown. Each step with independent timeout."""
         logger.info("Shutting down")
+
+        # 0. Stop sample injector (so it stops writing frames before solver stops)
+        try:
+            self._sample_injector.stop()
+        except Exception as exc:
+            logger.error("Error stopping sample injector: %s", exc)
 
         # 1. Stop solver thread
         if self._solver_thread:

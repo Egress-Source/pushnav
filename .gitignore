@@ -5,7 +5,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
-.python-version
 
 # Swift build artifacts
 camera/mac/.build/
@@ -19,10 +18,13 @@ camera/windows/*.obj
 # MkDocs build output
 site/
 
-# Windows build script artifacts
-Building
-Cleaning
-Version
+# Nuitka crash report (only emitted on Nuitka build failure)
+nuitka-crash-report.xml
 
 # Claude Code
 .claude/
+
+# React front-end
+node_modules/
+web/dist/
+web/.vite/

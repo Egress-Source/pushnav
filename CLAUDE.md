@@ -5,20 +5,37 @@
 A cross-platform desktop app that plate-solves live camera frames to determine telescope pointing,
 enabling push-to navigation for manual telescopes.
 
-Python (DearPyGui UI + tetra3 solver) talks to a native camera subprocess over TCP.
+Python (React UI in a pywebview window + tetra3 solver) talks to a native camera subprocess over TCP.
 Camera servers are platform-specific: Swift (macOS), C/V4L2 (Linux), C/DirectShow (Windows).
 
 External integrations run in-process on three TCP servers: a **Stellarium** binary-protocol
 server on `localhost:10001`, an **LX200 Classic** ASCII server on `0.0.0.0:4030` for
 SkySafari / Stellarium Mobile / INDI / ASCOM clients, and an **aiohttp HTTP + WebSocket**
-server on `0.0.0.0:8080` for the phone-scannable mobile web interface.
+server on `0.0.0.0:8765` for the phone-scannable mobile web interface.
+
+The UI has two tabs:
+- **Navigation** — live camera frame, plate-solve overlay, sync wizard, push-to arrow.
+- **What to See** — filterable catalog of 161 deep-sky objects (vendored from
+  the Stargazing-Buddy site) with client-side visibility math. Click a row →
+  detail panel; "Set as target" promotes the object to the current GOTO target
+  and switches back to Navigation. The right column also hosts a manual
+  Location panel; observer location feeds visibility math and falls back to
+  Stellarium's reported location when a Stellarium client is connected.
 
 ## Build & Run
 
 ```bash
-uv sync                    # install all deps from lockfile
-uv run python -m evf.main  # launch app
-uv run python -m evf.main --dev  # launch in dev mode
+uv sync                          # install Python deps from lockfile
+(cd web && npm install)          # install Node deps
+
+# Production-style — launches engine + pywebview window with built React UI
+(cd web && npm run build)
+uv run python -m evf.main
+
+# Dev mode (HMR) — Vite serves UI on :5173 with hot reload
+uv run python -m evf.main --dev --no-window     # terminal 1: engine only
+(cd web && npm run dev)                          # terminal 2: Vite dev server
+# Open http://localhost:5173 in your browser
 ```
 
 ### Platform-specific camera build
@@ -51,7 +68,7 @@ uv run pytest tests/
 ```
 pyproject.toml                  # project config (hatchling build, uv sources)
 python/evf/                     # main Python package
-  main.py                       # entry point
+  main.py                       # entry point — engine + pywebview
   paths.py                      # centralized path resolution (dev vs release bundles)
   network.py                    # shared LAN-IP probe used by webserver + engine
   engine/                       # core engine, state machine, threading
@@ -61,10 +78,9 @@ python/evf/                     # main Python package
     pointing.py                 # telescope pointing state
     navigation.py               # goto-target navigation logic
     goto_target.py              # thread-safe goto target container
+    sample_injector.py          # dev-mode sample-image injector
     audio.py                    # audio feedback (lock/lost sounds)
     epoch.py                    # J2000 <-> JNow precession (pyerfa)
-  ui/                           # DearPyGui UI layer
-    window.py                   # main UI window
   camera/                       # TCP camera client
     client.py                   # camera TCP client
     protocol.py                 # camera protocol (de)serialization
@@ -79,12 +95,32 @@ python/evf/                     # main Python package
   lx200/                        # LX200 Classic TCP protocol server
     server.py                   # TCP server (select-based, multi-client)
     protocol.py                 # LX200 ASCII parsing + dispatch
-  webserver/                    # aiohttp HTTP + WebSocket mobile web interface
-    server.py                   # HTTP routes + /ws 10 Hz state broadcast
+  webserver/                    # aiohttp HTTP + WebSocket server
+    server.py                   # serves React build, MJPEG, /ws, /api/*
   config/                       # configuration
     manager.py                  # JSON config read/write
     logging_setup.py            # logging configuration
 python/vendor/tetra3/           # vendored tetra3 (local editable dep via uv)
+web/                            # React + Vite + TS + Tailwind + shadcn/ui front-end
+  package.json
+  vite.config.ts
+  src/
+    App.tsx
+    main.tsx
+    components/                 # LiveView, Wizard, Settings, DebugPanel, ...
+      catalog/                  # WhatToSee tab — Buddy/Advanced sub-tabs, table, filters, detail, time, LocationPanel
+        advanced/               # AdvancedTab: search input + results + ManualEntry RA/Dec panel
+        buddy/                  # BuddyTab (curated 161 catalog)
+      live-view/                # LiveView, NavOverlay, AxesOverlay, StarOverlay, ...
+        SkyDome/                # always-visible 3D dome (R3F) — pointing/target markers, telescope cylinder
+    hooks/                      # useEngineState (WebSocket subscription), useView
+    lib/                        # api client, types, astronomy (altAz/rise/set), catalogTypes, advancedSearch
+    data/
+      objects.json              # vendored buddy catalog (161 curated entries)
+      openngc.json              # OpenNGC trimmed to ~12.5k NGC objects (CC-BY-SA 4.0)
+      hyg-bright.json           # HYG v3 trimmed to ~8.8k bright stars (CC-BY-SA 4.0)
+  public/                       # logo, inapp-title, favicons
+  dist/                         # build output (gitignored)
 camera/
   mac/                          # Swift camera server (macOS)
   linux/                        # C/V4L2 camera server (Linux)
@@ -92,9 +128,8 @@ camera/
 data/
   hip8_database.npz             # tetra3 star database (~85 MB)
   VERSION.json                  # app + protocol + db version metadata
-  fonts/                        # Inter font files for UI
   sounds/                       # audio feedback WAVs (lock, lost, goto_ack)
-  web/                          # mobile web interface assets (index.html, logos)
+  web_dist/                     # React build output (release-only — copied here by build scripts)
 docs/                           # GitHub Pages documentation
   index.md                      # GitHub Pages landing page
   hardware.md                   # camera, lens, DIY, shopping list
@@ -118,6 +153,7 @@ scripts/                        # build and dev scripts
   run_dev_windows.bat           # dev launch (Windows)
   run_mock_camera.sh            # launch mock camera for testing
   pushnav.iss                   # Inno Setup installer script (Windows)
+  sync_catalog.py               # vendor objects.json from ~/Devel/Github/stargazing-buddy-site
   test_stellarium_live.py       # manual Stellarium integration test
 tests/                          # test suite (pytest)
   samples/                      # plate-solve test images (a–d.png + targets/)
@@ -127,16 +163,24 @@ specs/start/                    # design specifications
 ## Key Dependencies
 
 - **tetra3** — vendored at `python/vendor/tetra3/`, wired as editable local dep in `[tool.uv.sources]`
-- **DearPyGui** — UI framework (requires display context; import-only works headless)
+- **pywebview** — wraps the OS webview (WebKit/WebView2/GTK) for the desktop window
+- **React + Vite + TypeScript + Tailwind + shadcn/ui** — front-end stack (under `web/`)
+- **three** + **@react-three/fiber** + **@react-three/drei** — WebGL rendering for the always-visible Sky View 3D dome (`web/src/components/live-view/SkyDome/`). Labels use drei `<Html>` to stay offline; `<Text>` is intentionally avoided so troika-three-text's CDN font-resolver is never loaded
 - **numpy**, **scipy**, **Pillow** — tetra3 dependencies
 - **playsound3** — audio feedback for solve lock/lost events
-- **aiohttp** — HTTP + WebSocket server for the mobile web interface
-- **qrcode[pil]** — QR-code rendering for the mobile-web pairing flow in the Settings panel
+- **aiohttp** — HTTP + WebSocket server (serves the React build, /ws state, /frame.mjpg, /api/*)
+- **qrcode[pil]** — QR-code rendering for the LAN URL in the Settings panel
 - **pyerfa** — IAU 2006 precession (J2000 ↔ JNow) for the LX200 protocol server
+- **pyyaml** — used only by `scripts/sync_catalog.py` to parse the buddy-site
+  markdown frontmatter when refreshing `web/src/data/objects.json`
 
 Dev dependencies: **nuitka** (builds), **pytest** (tests).
 Docs dependency group (`uv sync --group docs`): **mkdocs-material** for the
 GitHub Pages site under `docs/`.
+
+The runtime app does **not** depend on `~/Devel/Github/stargazing-buddy-site`.
+That repo is only consulted by `scripts/sync_catalog.py` when the maintainer
+runs the script to refresh the vendored JSON.
 
 ## Important: Loading the tetra3 Database
 
@@ -165,7 +209,13 @@ In application code, use `evf.paths.database_path()` which handles dev vs releas
 - No frame queues — always use most recent frame only
 - All shared state protected by `threading.Lock`
 - Camera subprocess is a separate OS process, communicating over TCP
+- The camera_server binary should `exit(1)` on device disconnect / fatal
+  capture error; the engine's `CameraSubprocessMgr` watches the TCP socket
+  and runs a 5-attempt backoff recovery loop (1, 2, 4, 8, 15 s)
 - Path resolution goes through `evf/paths.py` (handles dev repo, macOS .app bundle, Linux/Windows release)
+- All fonts in the React UI come from the OS — the app ships no web fonts and
+  applies no `font-family` overrides; Tailwind v4 preflight uses its built-in
+  `font-sans` / `font-mono` stacks (system-ui / ui-monospace)
 
 ## Specs
 

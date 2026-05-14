@@ -49,12 +49,19 @@ The first time PushNav starts, Windows Firewall will ask if you want to allow Pu
 
 Because PushNav is a free, open-source app and isn't sold through the Mac App Store, macOS will show a couple of prompts the first time you open it. This is normal.
 
-**Security warning.** macOS will say it can't verify the developer:
+**"PushNav is damaged and can't be opened. You should move it to the Bin."**
 
-- **macOS 14 and earlier**: Right-click PushNav in Applications → click **Open** → click **Open** again in the confirmation dialog
-- **macOS 15 (Sequoia) and later**: Double-click PushNav (it will be blocked), then go to **System Settings → Privacy & Security**, scroll down, and click **Open Anyway**
+The app is fine — this is macOS Gatekeeper refusing to launch an unsigned app that your browser flagged as "downloaded from the internet". The dialog has only **Cancel** and **Move to Bin**, with no "Open Anyway" option.
 
-You only need to do this once.
+To fix it, open **Terminal** and run:
+
+```bash
+xattr -cr /Applications/PushNav.app
+```
+
+That removes the quarantine flag your browser set. Double-click PushNav again — it'll launch normally. You only need to do this once.
+
+If you instead see **"can't be opened because Apple cannot check it for malicious software"** (older quarantine dialog with an "Open Anyway" path), that one you can solve in **System Settings → Privacy & Security** — scroll down and click **Open Anyway**. Either path lands at the same end state.
 
 **Camera access.** macOS will ask if PushNav can use your camera. Click **Allow**. PushNav needs the camera to see the stars.
 
@@ -64,6 +71,42 @@ You only need to do this once.
 
 ## Linux
 
+### Before you start: system packages
+
+PushNav ships its own window toolkit (Qt/Chromium) inside the AppImage,
+so there's nothing GTK- or WebKit-related to install. You do need two
+small system pieces: **FUSE** (so the AppImage format can mount itself
+on first launch) and **GStreamer** (so the lock / lost / GOTO audio
+alerts can play). Most desktop Linux installs already have both, but on
+a fresh or minimal system install them first:
+
+**Ubuntu / Debian / Mint / Pop!_OS:**
+
+```bash
+sudo apt install libfuse2 gstreamer1.0-tools
+```
+
+**Fedora:**
+
+```bash
+sudo dnf install fuse gstreamer1
+```
+
+**Arch / Manjaro:**
+
+```bash
+sudo pacman -S fuse2 gst-plugins-base
+```
+
+If FUSE is missing, the AppImage refuses to start with a message about
+mounting. If GStreamer is missing, you'll see "could not open audio
+device" warnings but the rest of the app still works.
+
+!!! note "What about PyGObject / GTK / WebKit2GTK?"
+    Older versions of PushNav used pywebview's GTK backend and required
+    `python3-gi`, `gir1.2-webkit2-4.1`, etc. The Linux build switched to
+    Qt — none of those packages are needed anymore.
+
 ### Install
 
 1. Download the `.AppImage` file
@@ -72,8 +115,6 @@ You only need to do this once.
    chmod +x PushNav-linux-*.AppImage
    ./PushNav-linux-*.AppImage
    ```
-
-The AppImage is self-contained. Everything PushNav needs is bundled inside.
 
 ### Camera permission
 
@@ -89,9 +130,9 @@ Log out and back in for the change to take effect.
 
 ## Before you launch
 
-**Plug in your USB camera before starting PushNav.** The app looks for the camera at startup and won't continue without one.
+You can launch PushNav with or without a camera plugged in. If you start it without one, the live-view area shows a **"Camera not connected"** placeholder with a **Retry** button — plug the camera in, click Retry, and PushNav picks up where it would have started. The rest of the app (Settings, Connectivity, the "What to See" catalog) is fully usable in the meantime, so you can plan a session indoors before stepping out to the scope.
 
-When PushNav starts, you'll see a brief loading screen, then the main window with a live camera feed on the left and a step-by-step panel on the right. The panel walks you through alignment. No prior experience needed.
+When PushNav starts, you'll see a brief loading screen, then the main window with a live camera feed on the left (or the camera-not-connected placeholder) and a step-by-step panel on the right. The panel walks you through alignment. No prior experience needed.
 
 ## Phone companion
 

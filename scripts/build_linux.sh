@@ -30,6 +30,16 @@ BUILD_DIR="$REPO_ROOT/build"
 APP_NAME="PushNav-linux"
 APP_DIR="$BUILD_DIR/$APP_NAME"
 
+cd "$REPO_ROOT"
+
+# -------------------------------------------------------------------------
+# Phase 0: Sync Python deps. Uses the repo's pinned 3.12.13 standalone
+# Python; pywebview's Qt backend (PyQt6 + PyQt6-WebEngine, pulled in by
+# the `pywebview[qt]` extra in pyproject.toml) is fully pip-installable,
+# so no system PyGObject / --system-site-packages dance is required.
+# -------------------------------------------------------------------------
+uv sync
+
 echo "==> Cleaning previous build"
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
@@ -48,20 +58,40 @@ fi
 echo "    Camera server: $(du -h "$CAMERA_BIN" | cut -f1)"
 
 # -------------------------------------------------------------------------
+# Phase 1b: Build React UI
+# -------------------------------------------------------------------------
+echo "==> Building React UI"
+(cd "$REPO_ROOT/web" && npm ci && npm run build)
+if [ ! -f "$REPO_ROOT/web/dist/index.html" ]; then
+    echo "ERROR: React build did not produce web/dist/index.html"
+    exit 1
+fi
+
+# -------------------------------------------------------------------------
 # Phase 2: Build Python with Nuitka (standalone)
 # -------------------------------------------------------------------------
 echo "==> Building Python app with Nuitka (standalone)"
+# --enable-plugin=pyqt6 is essential for QtWebEngine: it bundles the
+# QtWebEngineProcess helper (Qt6/libexec/), icudtl.dat, the locale
+# .pak files, and qtwebengine_resources*.pak. Without it, Chromium
+# spawns its renderer subprocess, can't find the helper binary, and
+# the app aborts with SIGABRT on first window paint. The plugin also
+# handles qtpy's PyQt6 import path, so the explicit --include-package
+# entries for qtpy/PyQt6 are no longer needed.
 uv run python -m nuitka \
     --standalone \
+    --enable-plugin=pyqt6 \
     --output-dir="$BUILD_DIR" \
-    --output-filename=evf \
-    --include-package=dearpygui \
+    --output-filename=PushNav \
     --include-package=numpy \
     --include-package=scipy \
     --include-package=PIL \
     --include-package=playsound3 \
     --include-package=tetra3 \
     --include-package=erfa \
+    --include-package=qtpy \
+    --include-data-dir="$REPO_ROOT/web/dist=data/web_dist" \
+    --include-data-dir="$REPO_ROOT/tests/samples=data/samples" \
     --nofollow-import-to=pytest \
     --nofollow-import-to=setuptools \
     --nofollow-import-to=linuxpy \
@@ -92,7 +122,6 @@ chmod +x "$APP_DIR/camera_server"
 cp "$REPO_ROOT/data/hip8_database.npz" "$APP_DIR/data/"
 cp "$REPO_ROOT/data/VERSION.json" "$APP_DIR/data/"
 cp -a "$REPO_ROOT/data/sounds" "$APP_DIR/data/sounds"
-cp -a "$REPO_ROOT/data/fonts" "$APP_DIR/data/fonts"
 
 # Copy marketing assets
 cp "$REPO_ROOT/marketing/inapp-title.png" "$APP_DIR/marketing/"
@@ -135,7 +164,7 @@ cat > "$APPDIR/AppRun" <<'APPRUN'
 #!/bin/bash
 HERE="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="${HERE}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-exec "${HERE}/evf" "$@"
+exec "${HERE}/PushNav" "$@"
 APPRUN
 chmod +x "$APPDIR/AppRun"
 

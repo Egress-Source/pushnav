@@ -34,8 +34,8 @@ DEFAULT_CONFIG = {
     "calibration": {"finder_rotation": 0.0, "sync_d_body": None},
     "logging": {"verbose": False},
     "audio": {"enabled": True},
-    "display": {"hidpi": False, "hidpi_last_scale": 0},
-    "webserver": {"port": 8080},
+    "webserver": {"port": 8765},
+    "location": {"latitude": None, "longitude": None},
 }
 
 
@@ -180,22 +180,6 @@ class ConfigManager:
         self.set("audio", "enabled", value)
 
     @property
-    def hidpi(self) -> bool:
-        return self.get("display", "hidpi")
-
-    @hidpi.setter
-    def hidpi(self, value: bool) -> None:
-        self.set("display", "hidpi", value)
-
-    @property
-    def hidpi_last_scale(self) -> int:
-        return self.get("display", "hidpi_last_scale") or 0
-
-    @hidpi_last_scale.setter
-    def hidpi_last_scale(self, value: int) -> None:
-        self.set("display", "hidpi_last_scale", value)
-
-    @property
     def verbose(self) -> bool:
         return self.get("logging", "verbose")
 
@@ -212,6 +196,29 @@ class ConfigManager:
         if not (1024 <= value <= 65535):
             raise ValueError(f"Web port must be between 1024 and 65535, got {value}")
         self.set("webserver", "port", value)
+
+    @property
+    def location(self) -> tuple[float, float] | None:
+        """Return (latitude_deg, longitude_deg) or None if unset."""
+        lat = self.get("location", "latitude")
+        lon = self.get("location", "longitude")
+        if lat is None or lon is None:
+            return None
+        return (float(lat), float(lon))
+
+    @location.setter
+    def location(self, value: tuple[float, float] | None) -> None:
+        if value is None:
+            self.set("location", "latitude", None)
+            self.set("location", "longitude", None)
+            return
+        lat, lon = value
+        if not (-90.0 <= lat <= 90.0):
+            raise ValueError(f"latitude must be in [-90, 90], got {lat}")
+        if not (-180.0 <= lon <= 180.0):
+            raise ValueError(f"longitude must be in [-180, 180], got {lon}")
+        self.set("location", "latitude", float(lat))
+        self.set("location", "longitude", float(lon))
 
     @property
     def path(self) -> Path:

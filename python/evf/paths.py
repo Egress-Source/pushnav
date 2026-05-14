@@ -97,14 +97,6 @@ def sounds_dir() -> Path:
     return _REPO_ROOT / "data" / "sounds"
 
 
-def fonts_dir() -> Path:
-    if _BUNDLE_MODE:
-        return _RESOURCES / "fonts"
-    if _LINUX_RELEASE or _WINDOWS_RELEASE:
-        return _RELEASE_ROOT / "data" / "fonts"
-    return _REPO_ROOT / "data" / "fonts"
-
-
 def title_image() -> Path:
     if _BUNDLE_MODE:
         return _RESOURCES / "marketing" / "inapp-title.png"
@@ -162,17 +154,25 @@ def camera_binary() -> Path:
     )
 
 
-def web_dir() -> Path:
-    """Path to data/web/ directory (mobile web interface assets)."""
+def web_dist_dir() -> Path:
+    """Path to the built React app (web/dist/) — present only in release or after `npm run build`."""
     if _BUNDLE_MODE:
-        return _RESOURCES / "web"
+        return _RESOURCES / "web_dist"
     if _LINUX_RELEASE or _WINDOWS_RELEASE:
-        return _RELEASE_ROOT / "data" / "web"
-    return _REPO_ROOT / "data" / "web"
+        return _RELEASE_ROOT / "data" / "web_dist"
+    return _REPO_ROOT / "web" / "dist"
 
 
 def samples_dir() -> Path | None:
-    """Path to test sample images. Returns None in release modes (not shipped)."""
-    if _BUNDLE_MODE or _LINUX_RELEASE or _WINDOWS_RELEASE:
-        return None
-    return _REPO_ROOT / "tests" / "samples"
+    """Path to test sample images.
+
+    Shipped in all builds so the DebugPanel sample-injection buttons work
+    when PUSHNAV_DEBUG=1. Returns None only if the directory is missing.
+    """
+    if _BUNDLE_MODE:
+        p = _RESOURCES / "samples"
+    elif _LINUX_RELEASE or _WINDOWS_RELEASE:
+        p = _RELEASE_ROOT / "data" / "samples"
+    else:
+        p = _REPO_ROOT / "tests" / "samples"
+    return p if p.exists() else None

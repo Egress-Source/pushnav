@@ -32,15 +32,25 @@ This system acts as a real-time electronic encoder replacement using plate solvi
 - Single supported UVC camera model
 - No camera selection UI
 - No multiple camera support
+- Window size is **1060 × 820** (HiDPI-scaled by each platform's webview)
+  and **non-resizable** (`resizable=False` in `webview.create_window()`).
+  The React layout is designed around this single size; no fluid /
+  responsive scaling is expected on the desktop window.
 
 ## 2.2 Functional Capabilities
 
 ### Live View
 - Continuous MJPEG stream from camera subprocess.
-- Displayed in DearPyGui panel.
+- Displayed in the React UI via the webserver's `/frame.mjpg` endpoint.
 - No frame buffering beyond latest frame.
-- Optional star overlay (detected + matched centroids).
+- Optional star overlay (detected + matched centroids), drawn in SVG.
 - Optional zoom slider for preview.
+- A camera is **not** required at startup. If none is connected, the
+  engine and all three TCP servers come up normally; the live-view area
+  shows a "Camera not connected" placeholder with a Retry control; the
+  solver thread doesn't start until a camera is actually connected.
+  This keeps Settings, Connectivity, and the What to See catalog usable
+  for offline planning.
 
 ### Camera Controls
 - Exposure (absolute)
@@ -89,8 +99,38 @@ Four-step wizard: Camera → Sync → Roll → Track
   `GotoTarget.set()` which plays the sound internally).
 - Audio can be enabled/disabled in settings.
 
+### Sky View
+
+- Always-visible 3D hemispheric dome in the wizard's right column,
+  rendered with `@react-three/fiber` (`web/src/components/live-view/SkyDome/`).
+- Two altitude/azimuth markers, derived from `state.pointing` and
+  `state.nav.{target_ra_deg, target_dec_deg}` via `altAzFromRaDec()`
+  in `web/src/lib/astronomy.ts`:
+  - Pointing marker — yellow sphere on the dome surface, plus a semi-
+    transparent wireframe-edged red cylinder along the pointing axis
+    (centred between the dome origin and the marker) representing the
+    telescope's direction. Length = 30% of the sphere radius.
+  - Target marker — cream sphere with the target name as an HTML label.
+- Two lines from the dome centre (0, 0, 0) to each marker:
+  - **Solid** red line to the target.
+  - **Dashed** red line to the pointing.
+- Cardinal direction labels (N, NE, E, SE, S, SW, W, NW) and the zenith
+  label are rendered with drei `<Html>` overlays — OS font, no SDF
+  worker, no external network requests (the app is fully offline).
+- The dome is rendered in every wizard state; markers appear only when
+  the corresponding data is available.
+- Below-horizon target: marker, line, and (if applicable) telescope
+  cylinder hidden; a "Target below horizon" badge is overlaid at the
+  top of the dome.
+- Missing location (`state.location.latitude` / `longitude` null):
+  both markers and lines hidden; a "Location info required" overlay
+  sits over the still-interactive dome.
+- Interactive: orbit (drag), zoom (scroll); pan disabled; OrbitControls
+  constrained to the upper hemisphere (no rotating below the ground
+  plane).
+
 ### Mobile Web Interface
-- Built-in HTTP + WebSocket server on `0.0.0.0:<webserver.port>` (default 8080).
+- Built-in HTTP + WebSocket server on `0.0.0.0:<webserver.port>` (default 8765).
 - Serves `data/web/index.html` — a single-page mobile view with no install.
 - WebSocket pushes pointing / navigation / state JSON at ~10 Hz to connected clients.
 - Settings panel shows the LAN URL + QR code so a phone can scan-to-connect.
@@ -178,7 +218,7 @@ See `SPEC_PROTOCOL_LX200.md`.
 
 ## 5.3 Mobile web interface
 
-- HTTP + WebSocket server on `0.0.0.0:<webserver.port>` (default 8080).
+- HTTP + WebSocket server on `0.0.0.0:<webserver.port>` (default 8765).
 - Serves `data/web/index.html` — a single-page mobile companion view with no
   install needed, designed for at-the-eyepiece use.
 - WebSocket `/ws` pushes pointing, navigation, and state JSON at ~10 Hz to
@@ -194,7 +234,44 @@ See `SPEC_PROTOCOL_LX200.md`.
 
 ## 5.4 UI surface
 
-The main window's Settings panel exposes all three server addresses:
+The header carries a two-tab segmented control:
+
+- **Navigation** — live camera frame, plate-solve overlay, the sync /
+  calibrate / track wizard, camera-control sliders, Connectivity (server
+  addresses + activity dots), and Settings (toggles + advanced solver +
+  Reset to defaults).
+- **What to See** — observer-relative target picker. The left island
+  carries a Buddy/Advanced sub-tab switcher.
+  - **Buddy** sub-tab: 161 vendored deep-sky objects with equipment /
+    light-pollution / visual-reward filters, an observation-time slider
+    (Now → +6h), and a sortable table of objects above 20° altitude at
+    the chosen time.
+  - **Advanced** sub-tab: a fuzzy-search input over two open catalogs
+    trimmed to JSON under `web/src/data/`:
+    - `openngc.json` — 12,522 NGC objects (OpenNGC v20260501, CC-BY-SA 4.0)
+    - `hyg-bright.json` — 8,825 stars (HYG v3 trimmed to bright stars,
+      CC-BY-SA 4.0)
+    Matching is scored (exact / prefix / substring) over the entry's id
+    and aliases; results are sorted by score → magnitude (brighter first)
+    → alphabetical, capped at 200 rows. A persistent search query keeps
+    its value when the user switches sub-tabs and comes back. Manual
+    entries (see below) are filtered out of search results.
+  - **Manual coordinates** panel (inside Advanced, between search and
+    results): six numeric fields (RA H/M/S, Dec D/M/S) plus a +/− sign
+    toggle for the Dec sign. Validating input produces an `AdvancedEntry`
+    with `source: "manual"` that flows through the same CatalogDetail
+    card as any catalog match. Used for targets not in either catalog
+    (transients, ephemeris-driven objects).
+
+  The right island carries the Location panel (manual lat/lon, source =
+  stellarium / manual / none) and a CatalogDetail card for whichever
+  row is highlighted. The detail card has a **Set as target** button
+  that POSTs to `/api/goto/set` and switches the tab back to Navigation.
+  The button is disabled when `altDeg < 0` with a "Below horizon" hint;
+  when location is unknown (altDeg = null) it stays enabled because
+  visibility can't be evaluated either way.
+
+The Connectivity panel exposes all three server addresses:
 
 - `<LAN-IP>:<webserver.port>` — mobile web URL, with QR code
 - `localhost:10001` — Stellarium binary protocol (loopback only)
@@ -291,12 +368,8 @@ Stored as JSON. Platform-specific paths:
   "audio": {
     "enabled": true
   },
-  "display": {
-    "hidpi": false,
-    "hidpi_last_scale": 0
-  },
   "webserver": {
-    "port": 8080
+    "port": 8765
   }
 }
 ```
@@ -306,9 +379,8 @@ Notes:
 - `camera.exposure` / `camera.gain` are `null` on first run. The engine
   initializes them to the midpoint of the reported camera range on the
   first camera HELLO and persists the values from there on.
-- `display.hidpi_last_scale` caches the last detected display scale factor
-  (Windows primary monitor, in percent — 100, 125, 150, …) so the engine
-  can auto-toggle 4K mode when the user moves to a different-DPI display.
+- HiDPI scaling is handled by each platform's webview (WKWebView /
+  WebKit2GTK / WebView2) against the OS DPI settings; no app-side toggle.
 - `webserver.port` is validated to 1024–65535 on write.
 - Config is versioned for future upgrades. Missing keys are merged from
   defaults on load.
@@ -364,9 +436,19 @@ Verbose mode logs:
 - Telescope-control address block showing LX200 (`<LAN-IP>:4030`) and
   Stellarium (`localhost:10001`) addresses, each with a red-dot activity
   indicator that lights while a client is talking to the server
-- HiDPI / 4K monitor compatibility toggle
 - Audio enable/disable toggle
 - "Use Previous Calibration" button (when saved calibration exists)
+- "What to See" target picker with Buddy / Advanced sub-tabs and a Manual
+  coordinates panel; selecting any row promotes it to the active GOTO
+  target. Below-horizon objects show "Below horizon" and the **Set as
+  target** button is disabled (only when a location is known).
+- Advanced search query persists across Buddy ↔ Advanced sub-tab switches
+  within a session.
+- Always-visible Sky View 3D dome (right column of every wizard step):
+  pointing marker (yellow), target marker (cream), telescope cylinder
+  along the pointing axis, solid target line + dashed pointing line.
+  Interactive (drag/zoom). Shows "Location info required" or "Target
+  below horizon" overlays when applicable.
 - Debug section (dev mode only) for frame capture and sample injection
 - Consecutive failure counter and last solve age display
 
@@ -396,6 +478,11 @@ Verbose mode logs:
   when the plate-solve converges within 0.5°.
 - Mobile web interface reachable from a phone on the same Wi-Fi via the
   QR code in the Settings panel.
+- Sky View dome renders in every wizard state (SETUP, SYNC, SYNC_CONFIRM,
+  CALIBRATE, WARMING_UP, TRACKING). Pointing marker tracks the current
+  solve when `state.pointing.valid`; target marker tracks the active
+  GOTO when `state.nav.active`. Below-horizon target → marker hidden,
+  badge shown. Location null → markers hidden, overlay shown.
 - Audio feedback on lock/lost transitions.
 - Unplug camera → auto restart attempts.
 - Exceed retry limit → ERROR state.

@@ -49,51 +49,23 @@ if [ ! -f "$CAMERA_BIN" ]; then
 fi
 
 # -------------------------------------------------------------------------
-# Phase 2: Build Python with Nuitka (standalone)
+# Phase 1b: Build React UI
 # -------------------------------------------------------------------------
-echo "==> Building Python app with Nuitka (standalone)"
-uv run python -m nuitka \
-    --standalone \
-    --static-libpython=no \
-    --output-dir="$BUILD_DIR" \
-    --output-filename=evf \
-    --include-package=dearpygui \
-    --include-package=numpy \
-    --include-package=scipy \
-    --include-package=PIL \
-    --include-package=playsound3 \
-    --include-package=tetra3 \
-    --include-package=erfa \
-    --nofollow-import-to=pytest \
-    --nofollow-import-to=setuptools \
-    `# Exclude stdlib C extensions that link to Homebrew dylibs — Nuitka 4.x` \
-    `# bug: its macOS dep scanner finds them but the DLL inclusion phase` \
-    `# doesn't bundle them, causing a FATAL in fixupBinaryDLLPathsMacOS.` \
-    `# None of these are needed by this app (DearPyGui + tetra3).` \
-    --nofollow-import-to=_blake2 \
-    --nofollow-import-to=_hashlib \
-    --nofollow-import-to=_ssl \
-    --nofollow-import-to=_curses \
-    --nofollow-import-to=_curses_panel \
-    --nofollow-import-to=_dbm \
-    --nofollow-import-to=_gdbm \
-    --nofollow-import-to=_tkinter \
-    --nofollow-import-to=readline \
-    --assume-yes-for-downloads \
-    "$REPO_ROOT/python/evf/main.py"
-
-NUITKA_DIST="$BUILD_DIR/main.dist"
-if [ ! -d "$NUITKA_DIST" ]; then
-    echo "ERROR: Nuitka dist not found at $NUITKA_DIST"
+echo "==> Building React UI"
+(cd "$REPO_ROOT/web" && npm ci && npm run build)
+if [ ! -f "$REPO_ROOT/web/dist/index.html" ]; then
+    echo "ERROR: React build did not produce web/dist/index.html"
     exit 1
 fi
 
 # -------------------------------------------------------------------------
-# Phase 2b: Generate app icon (.icns)
+# Phase 1c: Generate app icon (.icns) — must precede Nuitka so the
+#           bundle gets it baked in via --macos-app-icon.
 # -------------------------------------------------------------------------
 echo "==> Generating app icon"
 LOGO="$REPO_ROOT/marketing/logo.png"
 ICONSET="$BUILD_DIR/AppIcon.iconset"
+ICON_PATH="$BUILD_DIR/AppIcon.icns"
 mkdir -p "$ICONSET"
 
 sips -z   16   16 "$LOGO" --out "$ICONSET/icon_16x16.png"      >/dev/null
@@ -107,75 +79,104 @@ sips -z  512  512 "$LOGO" --out "$ICONSET/icon_256x256@2x.png" >/dev/null
 sips -z  512  512 "$LOGO" --out "$ICONSET/icon_512x512.png"    >/dev/null
 sips -z 1024 1024 "$LOGO" --out "$ICONSET/icon_512x512@2x.png" >/dev/null
 
-iconutil --convert icns "$ICONSET" --output "$BUILD_DIR/AppIcon.icns"
+iconutil --convert icns "$ICONSET" --output "$ICON_PATH"
 rm -rf "$ICONSET"
-echo "    Icon: $BUILD_DIR/AppIcon.icns"
+echo "    Icon: $ICON_PATH"
 
 # -------------------------------------------------------------------------
-# Phase 3: Assemble .app bundle
+# Phase 2: Build Python app with Nuitka (--mode=app)
 # -------------------------------------------------------------------------
-echo "==> Assembling $APP_NAME.app"
-mkdir -p "$MACOS" "$RESOURCES"
+# Nuitka 4.x's options-nanny refuses to compile any code that imports
+# Foundation (pulled in by pywebview's Cocoa backend) unless --mode=app
+# is used. --mode=app implies --standalone and creates the .app bundle
+# with a default Info.plist; we pass app metadata via the --macos-app-*
+# flags instead of writing the plist by hand.
+# -------------------------------------------------------------------------
+echo "==> Building Python app with Nuitka (--mode=app)"
+uv run python -m nuitka \
+    --mode=app \
+    --static-libpython=no \
+    --output-dir="$BUILD_DIR" \
+    `# Binary filename must match the .app bundle name. macOS TCC` \
+    `# attributes camera/network/etc. permission prompts to the binary` \
+    `# at Contents/MacOS/<name> and falls back to that name when` \
+    `# CFBundleExecutable doesn't line up with CFBundleName — so using` \
+    `# 'evf' here makes the camera prompt say 'evf' instead of 'PushNav'.` \
+    --output-filename=PushNav \
+    --macos-app-name="$APP_NAME" \
+    --macos-app-version="$APP_VERSION" \
+    --macos-app-icon="$ICON_PATH" \
+    --macos-signed-app-name="com.pushnav.evf" \
+    --macos-app-protected-resource="NSCameraUsageDescription:PushNav uses the camera to capture telescope finder images for plate solving." \
+    --include-package=numpy \
+    --include-package=scipy \
+    --include-package=PIL \
+    --include-package=playsound3 \
+    --include-package=tetra3 \
+    --include-package=erfa \
+    --nofollow-import-to=pytest \
+    --nofollow-import-to=setuptools \
+    `# Exclude stdlib C extensions we genuinely don't need. _ssl / _hashlib /` \
+    `# _blake2 are NOT in this list — pywebview's webview.http imports ssl,` \
+    `# and aiohttp uses hashlib, so excluding them crashes the binary on launch.` \
+    --nofollow-import-to=_curses \
+    --nofollow-import-to=_curses_panel \
+    --nofollow-import-to=_dbm \
+    --nofollow-import-to=_gdbm \
+    --nofollow-import-to=_tkinter \
+    --nofollow-import-to=readline \
+    --assume-yes-for-downloads \
+    "$REPO_ROOT/python/evf/main.py"
 
-# Copy Nuitka standalone dist into MacOS/
-cp -a "$NUITKA_DIST"/* "$MACOS/"
+# Nuitka --mode=app names the output directory after the source filename
+# (main.py → main.app); --macos-app-name only sets CFBundleName / display
+# name. Rename so the rest of the script can refer to a stable APP_DIR.
+NUITKA_APP="$BUILD_DIR/main.app"
+if [ ! -d "$NUITKA_APP" ]; then
+    echo "ERROR: Nuitka did not produce $NUITKA_APP"
+    exit 1
+fi
+mv "$NUITKA_APP" "$APP_DIR"
 
-# Copy camera binary
+# -------------------------------------------------------------------------
+# Phase 3: Drop in resources Nuitka doesn't know about (camera binary,
+# star database, sounds, web bundle, sample images, branding image).
+# Nuitka has already populated Contents/MacOS/ with the Python runtime
+# and Contents/Resources/ with the icon.
+# -------------------------------------------------------------------------
+echo "==> Adding camera + data resources to $APP_NAME.app"
+
 cp "$CAMERA_BIN" "$MACOS/camera_server"
 chmod +x "$MACOS/camera_server"
 
-# Copy resources
 cp "$REPO_ROOT/data/hip8_database.npz" "$RESOURCES/"
 cp "$REPO_ROOT/data/VERSION.json" "$RESOURCES/"
-cp -a "$REPO_ROOT/data/sounds" "$RESOURCES/sounds"
-cp -a "$REPO_ROOT/data/fonts" "$RESOURCES/fonts"
+cp -a "$REPO_ROOT/data/sounds"      "$RESOURCES/sounds"
+cp -a "$REPO_ROOT/web/dist"         "$RESOURCES/web_dist"
+cp -a "$REPO_ROOT/tests/samples"    "$RESOURCES/samples"
 mkdir -p "$RESOURCES/marketing"
 cp "$REPO_ROOT/marketing/inapp-title.png" "$RESOURCES/marketing/"
-cp "$BUILD_DIR/AppIcon.icns" "$RESOURCES/AppIcon.icns"
-
-# Write Info.plist
-cat > "$CONTENTS/Info.plist" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
-  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key>
-    <string>PushNav</string>
-    <key>CFBundleDisplayName</key>
-    <string>PushNav</string>
-    <key>CFBundleIdentifier</key>
-    <string>com.pushnav.evf</string>
-    <key>CFBundleVersion</key>
-    <string>${APP_VERSION}</string>
-    <key>CFBundleShortVersionString</key>
-    <string>${APP_VERSION}</string>
-    <key>CFBundleExecutable</key>
-    <string>evf</string>
-    <key>CFBundlePackageType</key>
-    <string>APPL</string>
-    <key>CFBundleIconFile</key>
-    <string>AppIcon</string>
-    <key>NSHighResolutionCapable</key>
-    <true/>
-    <key>NSCameraUsageDescription</key>
-    <string>PushNav uses the camera to capture telescope finder images for plate solving.</string>
-</dict>
-</plist>
-PLIST
 
 echo "==> $APP_NAME.app assembled at $APP_DIR"
 
 # -------------------------------------------------------------------------
-# Phase 4: Create .dmg
+# Phase 4: Create styled .dmg via dmgbuild
+# -------------------------------------------------------------------------
+# dmgbuild (Python, in the repo's dev dep group) writes the volume's
+# .DS_Store directly via ds-store + mac-alias — bypassing the
+# AppleScript / Finder Automation path that broke for create-dmg on
+# Sequoia. Settings live in scripts/dmgbuild_settings.py; the .app and
+# background paths come in via env vars.
 # -------------------------------------------------------------------------
 DMG_PATH="$BUILD_DIR/$APP_NAME.dmg"
-echo "==> Creating $DMG_PATH"
-hdiutil create \
-    -volname "$APP_NAME" \
-    -srcfolder "$APP_DIR" \
-    -ov \
-    -format UDZO \
+echo "==> Creating styled $DMG_PATH"
+rm -f "$DMG_PATH"
+
+PUSHNAV_APP_PATH="$APP_DIR" \
+PUSHNAV_BG_PATH="$REPO_ROOT/marketing/dmg-background.png" \
+uv run dmgbuild \
+    -s "$SCRIPT_DIR/dmgbuild_settings.py" \
+    "$APP_NAME" \
     "$DMG_PATH"
 
 echo "==> Build complete!"

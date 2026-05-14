@@ -35,18 +35,18 @@ set "APP_DIR=%BUILD_DIR%\%APP_NAME%"
 
 REM Read version from VERSION.json (single source of truth)
 for /f "usebackq delims=" %%V in (`powershell -NoProfile -Command "(Get-Content '%REPO_ROOT%\data\VERSION.json' | ConvertFrom-Json).app_version"`) do set "APP_VERSION=%%V"
-echo ==> Version: %APP_VERSION%
+echo ==^> Version: %APP_VERSION%
 
-echo ==> Cleaning previous build
+echo ==^> Cleaning previous build
 if exist "%BUILD_DIR%" rmdir /s /q "%BUILD_DIR%"
 mkdir "%BUILD_DIR%"
 
 REM -------------------------------------------------------------------------
 REM Phase 1: Build C camera server
 REM -------------------------------------------------------------------------
-echo ==> Building C camera server
+echo ==^> Building C camera server
 pushd "%REPO_ROOT%\camera\windows"
-call build.bat
+call "%REPO_ROOT%\camera\windows\build.bat"
 if errorlevel 1 (
     echo ERROR: Camera server build failed
     popd
@@ -61,22 +61,55 @@ if not exist "%CAMERA_BIN%" (
 popd
 
 REM -------------------------------------------------------------------------
+REM Phase 1b: Build React UI
+REM -------------------------------------------------------------------------
+echo ==^> Building React UI
+pushd "%REPO_ROOT%\web"
+call npm ci
+if errorlevel 1 (
+    echo ERROR: npm ci failed
+    popd
+    exit /b 1
+)
+call npm run build
+if errorlevel 1 (
+    echo ERROR: React build failed
+    popd
+    exit /b 1
+)
+popd
+if not exist "%REPO_ROOT%\web\dist\index.html" (
+    echo ERROR: React build did not produce web\dist\index.html
+    exit /b 1
+)
+
+REM -------------------------------------------------------------------------
 REM Phase 2: Build Python with Nuitka (standalone)
 REM -------------------------------------------------------------------------
-echo ==> Building Python app with Nuitka (standalone)
+echo ==^> Building Python app with Nuitka (standalone)
 uv run python -m nuitka ^
     --standalone ^
-    --windows-disable-console ^
+    --windows-console-mode=disable ^
     --windows-icon-from-ico="%REPO_ROOT%\marketing\logo.ico" ^
+    --windows-product-name=PushNav ^
+    --windows-company-name="Arun Venkataswamy" ^
+    --windows-file-description="PushNav - plate-solving push-to" ^
+    --windows-product-version=%APP_VERSION%.0 ^
+    --windows-file-version=%APP_VERSION%.0 ^
     --output-dir="%BUILD_DIR%" ^
-    --output-filename=evf.exe ^
-    --include-package=dearpygui ^
+    --output-filename=PushNav.exe ^
     --include-package=numpy ^
     --include-package=scipy ^
     --include-package=PIL ^
     --include-package=playsound3 ^
     --include-package=tetra3 ^
     --include-package=erfa ^
+    --disable-plugin=pywebview ^
+    --include-module=webview.platforms.winforms ^
+    --include-module=webview.platforms.edgechromium ^
+    --include-module=webview.platforms.win32 ^
+    --include-data-dir="%REPO_ROOT%\web\dist=data\web_dist" ^
+    --include-data-dir="%REPO_ROOT%\tests\samples=data\samples" ^
     --nofollow-import-to=pytest ^
     --nofollow-import-to=setuptools ^
     --assume-yes-for-downloads ^
@@ -91,7 +124,7 @@ if not exist "%NUITKA_DIST%" (
 REM -------------------------------------------------------------------------
 REM Phase 3: Assemble release directory
 REM -------------------------------------------------------------------------
-echo ==> Assembling %APP_NAME%
+echo ==^> Assembling %APP_NAME%
 mkdir "%APP_DIR%\data" 2>nul
 mkdir "%APP_DIR%\marketing" 2>nul
 
@@ -105,20 +138,19 @@ REM Copy data resources
 copy /y "%REPO_ROOT%\data\hip8_database.npz" "%APP_DIR%\data\"
 copy /y "%REPO_ROOT%\data\VERSION.json" "%APP_DIR%\data\"
 xcopy /s /e /q /y "%REPO_ROOT%\data\sounds" "%APP_DIR%\data\sounds\"
-xcopy /s /e /q /y "%REPO_ROOT%\data\fonts" "%APP_DIR%\data\fonts\"
 
 REM Copy marketing assets
 copy /y "%REPO_ROOT%\marketing\inapp-title.png" "%APP_DIR%\marketing\"
 copy /y "%REPO_ROOT%\marketing\logo.ico" "%APP_DIR%\marketing\"
 
-echo ==> Release directory assembled at %APP_DIR%
+echo ==^> Release directory assembled at %APP_DIR%
 
 REM -------------------------------------------------------------------------
 REM Phase 4: Create zip
 REM -------------------------------------------------------------------------
 set "ZIP_NAME=PushNav-windows-x64.zip"
 set "ZIP_PATH=%BUILD_DIR%\%ZIP_NAME%"
-echo ==> Creating %ZIP_NAME%
+echo ==^> Creating %ZIP_NAME%
 powershell -NoProfile -Command "Compress-Archive -Path '%APP_DIR%' -DestinationPath '%ZIP_PATH%' -Force"
 
 REM -------------------------------------------------------------------------
@@ -129,12 +161,12 @@ set "ISCC="
 if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" set "ISCC=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
 if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" set "ISCC=%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe"
 if "!ISCC!"=="" (
-    echo ==> SKIP: Inno Setup not found
+    echo ==^> SKIP: Inno Setup not found
     echo     Install with: winget install JRSoftware.InnoSetup
     goto :done
 )
 
-echo ==> Creating Windows installer
+echo ==^> Creating Windows installer
 "!ISCC!" /DAPP_VERSION="%APP_VERSION%" "%REPO_ROOT%\scripts\pushnav.iss"
 if errorlevel 1 (
     echo ERROR: Installer build failed
@@ -145,7 +177,7 @@ set "SETUP_PATH=%BUILD_DIR%\PushNav-windows-x64-setup.exe"
 
 :done
 echo.
-echo ==> Build complete!
+echo ==^> Build complete!
 echo     Dir:  %APP_DIR%
 echo     Zip:  %ZIP_PATH%
 if defined SETUP_PATH if exist "%SETUP_PATH%" echo     Setup: %SETUP_PATH%
