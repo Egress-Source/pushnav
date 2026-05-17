@@ -110,8 +110,8 @@ DECLARE_INTERFACE_(ISampleGrabber, IUnknown) {
 /* Configuration                                                       */
 /* ------------------------------------------------------------------ */
 
-#define TARGET_VID   0x32E6
-#define TARGET_PID   0x9251
+#define TARGET_VID   0x0C45
+#define TARGET_PID   0x6366
 #define CAPTURE_W    1280
 #define CAPTURE_H    720
 #define SERVER_PORT  8764
